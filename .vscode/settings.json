@@ -1,0 +1,10 @@
+{
+  "command-runner.commands": {
+    "openCopilotChat": "workbench.view.chat"
+  },
+  "command-runner.runOnStartup": [
+    "openCopilotChat"
+  ],
+  "github.copilot.chat.enabled": true,
+  "github.copilot.chat.experimental.autocontinue": true
+}

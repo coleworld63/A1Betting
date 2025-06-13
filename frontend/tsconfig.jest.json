@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "jsx": "react-jsx",
+    "types": ["jest", "node"],
+    "verbatimModuleSyntax": false,
+    "module": "NodeNext",
+    "isolatedModules": true
+  },
+  "include": ["src", "**/*.test.ts", "**/*.test.tsx"]
+}

@@ -1,0 +1,43 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "lint",
+			"type": "shell",
+			"command": "make lint",
+			"group": "build"
+		},
+		{
+			"label": "test",
+			"type": "shell",
+			"command": "make test",
+			"group": "test"
+		},
+		{
+			"label": "build",
+			"type": "shell",
+			"command": "make build",
+			"group": "build"
+		},
+		{
+			"label": "docs",
+			"type": "shell",
+			"command": "make docs",
+			"group": "build"
+		},
+		{
+			"label": "orchestrate",
+			"type": "shell",
+			"command": "make orchestrate",
+			"group": "build"
+		},
+		{
+			"label": "intelligent-multiagent-orchestrator",
+			"type": "shell",
+			"command": "bash /workspaces/dev/scripts/intelligent_multiagent_orchestrator.sh",
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": []
+		}
+	]
+}
