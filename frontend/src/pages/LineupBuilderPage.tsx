@@ -322,6 +322,6 @@ const LineupBuilderPage: React.FC = () => {
       )}
     </Box>
   );
-};
+}
 
 export default LineupBuilderPage;
