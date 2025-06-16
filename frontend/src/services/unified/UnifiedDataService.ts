@@ -1,13 +1,13 @@
-import EventEmitter from 'eventemitter3';
-import axios, { AxiosInstance } from 'axios';
-import { io, Socket } from 'socket.io-client';
-import { z } from 'zod';
+import EventEmitter from "eventemitter3";
+import axios, { AxiosInstance } from "axios";
+import { io, Socket } from "socket.io-client";
+import { z } from "zod";
 
 // Data source types
 export enum DataSource {
-  PRIZEPICKS = 'prizepicks',
-  ESPN = 'espn',
-  ODDS_API = 'odds_api',
+  PRIZEPICKS = "prizepicks",
+  ESPN = "espn",
+  ODDS_API = "odds_api",
 }
 
 // Unified response schema
@@ -15,7 +15,7 @@ const DataResponseSchema = z.object({
   source: z.nativeEnum(DataSource),
   timestamp: z.number(),
   data: z.unknown(),
-  status: z.enum(['success', 'error']),
+  status: z.enum(["success", "error"]),
 });
 
 type DataResponse = z.infer<typeof DataResponseSchema>;
@@ -44,29 +44,49 @@ export class UnifiedDataService extends EventEmitter {
 
   private initializeClients() {
     // Initialize API clients
-    Object.values(DataSource).forEach(source => {
+    Object.values(DataSource).forEach((source) => {
       this.apiClients.set(
         source,
         axios.create({
           baseURL: this.getBaseUrl(source),
           timeout: 10000,
-        })
+        }),
       );
     });
   }
 
   private initializeWebSockets() {
     // Initialize WebSocket connections for each data source
-    Object.values(DataSource).forEach(source => {
-      const ws = new WebSocket(this.getWebSocketUrl(source));
+    Object.values(DataSource).forEach((source) => {
+      const wsUrl = this.getWebSocketUrl(source);
 
-      ws.onmessage = event => {
+      // Safety checks to prevent invalid WebSocket connections
+      if (
+        !wsUrl ||
+        wsUrl === "" ||
+        wsUrl === "wss://api.betproai.com/ws" ||
+        wsUrl.includes("api.betproai.com") ||
+        wsUrl.includes("localhost:8000") ||
+        wsUrl.includes("localhost:3001") ||
+        import.meta.env.VITE_ENABLE_WEBSOCKET === "false"
+      ) {
+        console.log(
+          "WebSocket connection disabled for data source:",
+          source,
+          wsUrl,
+        );
+        return;
+      }
+
+      const ws = new WebSocket(wsUrl);
+
+      ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
         this.emit(`ws:${source}:${data.type}`, data);
       };
 
-      ws.onerror = error => {
-        this.emit('error', { source, error });
+      ws.onerror = (error) => {
+        this.emit("error", { source, error });
       };
 
       this.wsConnections.set(source, ws);
@@ -80,15 +100,15 @@ export class UnifiedDataService extends EventEmitter {
       [DataSource.ESPN]: import.meta.env.VITE_ESPN_API_URL,
       [DataSource.ODDS_API]: import.meta.env.VITE_ODDS_API_URL,
     };
-    return urls[source] || '';
+    return urls[source] || "";
   }
 
   private getWebSocketUrl(source: DataSource): string {
     switch (source) {
       case DataSource.PRIZEPICKS:
-        return 'wss://api.prizepicks.com/ws';
+        return "wss://api.prizepicks.com/ws";
       case DataSource.ODDS_API:
-        return 'wss://api.odds-api.com/ws';
+        return "wss://api.odds-api.com/ws";
       default:
         throw new Error(`Unknown data source: ${source}`);
     }
@@ -102,7 +122,7 @@ export class UnifiedDataService extends EventEmitter {
       }
       return await response.json();
     } catch (error) {
-      this.emit('error', { source, endpoint, error });
+      this.emit("error", { source, endpoint, error });
       throw error;
     }
   }
@@ -115,7 +135,7 @@ export class UnifiedDataService extends EventEmitter {
   async fetchDataFromApi(
     source: DataSource,
     endpoint: string,
-    params?: Record<string, unknown>
+    params?: Record<string, unknown>,
   ): Promise<DataResponse> {
     const cacheKey = `${source}:${endpoint}:${JSON.stringify(params)}`;
     const cached = this.cache.get(cacheKey);
@@ -126,7 +146,7 @@ export class UnifiedDataService extends EventEmitter {
         source,
         timestamp: cached.timestamp,
         data: cached.data,
-        status: 'success',
+        status: "success",
       };
     }
 
@@ -146,15 +166,15 @@ export class UnifiedDataService extends EventEmitter {
         source,
         timestamp: Date.now(),
         data: response.data,
-        status: 'success',
+        status: "success",
       };
     } catch (error) {
-      this.emit('error', { source, error });
+      this.emit("error", { source, error });
       return {
         source,
         timestamp: Date.now(),
         data: null,
-        status: 'error',
+        status: "error",
       };
     }
   }
@@ -163,18 +183,18 @@ export class UnifiedDataService extends EventEmitter {
     if (this.wsConnections.has(source)) return;
 
     const socket = io(this.getBaseUrl(source), {
-      transports: ['websocket'],
+      transports: ["websocket"],
       autoConnect: true,
     });
 
-    options.events.forEach(event => {
-      socket.on(event, data => {
+    options.events.forEach((event) => {
+      socket.on(event, (data) => {
         this.emit(`ws:${source}:${event}`, data);
       });
     });
 
-    socket.on('connect_error', error => {
-      this.emit('ws:error', { source, error });
+    socket.on("connect_error", (error) => {
+      this.emit("ws:error", { source, error });
     });
 
     this.wsConnections.set(source, socket);

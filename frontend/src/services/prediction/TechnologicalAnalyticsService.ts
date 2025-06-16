@@ -14,7 +14,7 @@ interface TechnologicalAnalysisRequest {
 
 export class TechnologicalAnalyticsService {
   async analyzeTechnologicalFactors(
-    request: TechnologicalAnalysisRequest
+    _request: TechnologicalAnalysisRequest,
   ): Promise<TechnologicalData> {
     // In a real implementation, this would analyze technological factors
     // For now, return mock data

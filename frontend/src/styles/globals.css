@@ -2,6 +2,58 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== PREMIUM COMPONENT LIBRARY ===== */
+@layer components {
+  /* === CARDS & CONTAINERS === */
+  .premium-card {
+    @apply bg-white/95 backdrop-blur-xl border border-white/20 rounded-3xl shadow-xl transition-all duration-300 ease-out overflow-hidden relative;
+  }
+
+  .premium-card:hover {
+    @apply transform -translate-y-2 shadow-2xl;
+  }
+
+  .glass-card {
+    @apply bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-lg transition-all duration-300 ease-out;
+  }
+
+  .glass-card:hover {
+    @apply bg-white/20 border-white/30 transform translate-y-[-2px];
+  }
+
+  /* === BUTTONS === */
+  .btn-premium {
+    @apply px-8 py-4 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-2xl shadow-lg transition-all duration-300 ease-out transform hover:scale-105 hover:shadow-xl active:scale-95;
+  }
+
+  .btn-glass {
+    @apply px-6 py-3 bg-white/20 backdrop-blur-lg border border-white/30 text-gray-700 font-medium rounded-xl shadow-lg transition-all duration-300 ease-out hover:bg-white/30 hover:border-white/40;
+  }
+
+  .btn-outline {
+    @apply px-6 py-3 bg-transparent border-2 border-blue-500 text-blue-500 font-semibold rounded-xl transition-all duration-300 ease-out hover:bg-blue-500 hover:text-white hover:shadow-lg;
+  }
+
+  /* === INPUTS === */
+  .input-premium {
+    @apply w-full px-6 py-4 bg-white/90 backdrop-blur-lg border border-gray-200 rounded-2xl text-gray-900 placeholder-gray-500 transition-all duration-300 ease-out focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20 focus:bg-white;
+  }
+
+  /* === NAVIGATION === */
+  .nav-premium {
+    @apply bg-white/95 backdrop-blur-xl border-b border-gray-200/50 shadow-lg;
+  }
+
+  /* === BADGES === */
+  .badge-premium {
+    @apply inline-flex items-center px-3 py-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-sm font-medium rounded-full shadow-sm;
+  }
+
+  .badge-glass {
+    @apply inline-flex items-center px-3 py-1 bg-white/20 backdrop-blur-lg border border-white/30 text-gray-700 text-sm font-medium rounded-full;
+  }
+}
+
 @layer base {
   :root {
     --color-primary: 14 165 233;
@@ -18,6 +70,16 @@
 }
 
 @layer components {
+  /* Scrollbar utilities for better navigation UX */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
   .modern-card {
     @apply bg-white dark:bg-gray-800 rounded-xl shadow-glass backdrop-blur-sm border border-gray-200 dark:border-gray-700;
   }
@@ -69,4 +131,4 @@
   .currency-symbol {
     @apply absolute left-3 top-1/2 -translate-y-1/2 text-white/70;
   }
-} 
+}

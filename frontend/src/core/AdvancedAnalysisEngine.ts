@@ -1,7 +1,7 @@
-import { DataIntegrationHub, IntegratedData } from './DataIntegrationHub';
-import { EventBus } from './EventBus';
-import { FeatureFlags } from './FeatureFlags';
-import { PerformanceMonitor } from './PerformanceMonitor';
+import { DataIntegrationHub, IntegratedData } from "./DataIntegrationHub";
+import { EventBus } from "./EventBus";
+import { FeatureFlags } from "./FeatureFlags";
+import { PerformanceMonitor } from "./PerformanceMonitor";
 
 export interface AnalysisResult {
   playerId: string;
@@ -18,14 +18,14 @@ export interface AnalysisResult {
   };
   trends: {
     [metric: string]: {
-      direction: 'up' | 'down' | 'stable';
+      direction: "up" | "down" | "stable";
       strength: number;
       supporting_data: string[];
     };
   };
   risks: {
     [type: string]: {
-      level: 'LOW' | 'MEDIUM' | 'HIGH';
+      level: "LOW" | "MEDIUM" | "HIGH";
       factors: string[];
       mitigation?: string;
     };
@@ -61,14 +61,14 @@ export class AdvancedAnalysisEngine {
   private readonly eventBus: EventBus;
   private readonly performanceMonitor: PerformanceMonitor;
   private readonly dataHub: DataIntegrationHub;
-  private readonly featureManager: FeatureManager;
+  private readonly featureFlags: FeatureFlags;
   private config: AnalysisConfig;
 
   private constructor() {
     this.eventBus = EventBus.getInstance();
     this.performanceMonitor = PerformanceMonitor.getInstance();
     this.dataHub = DataIntegrationHub.getInstance();
-    this.featureManager = FeatureManager.getInstance();
+    this.featureFlags = FeatureFlags.getInstance();
     this.config = this.getDefaultConfig();
   }
 
@@ -98,14 +98,14 @@ export class AdvancedAnalysisEngine {
   }
 
   public async analyzePlayer(playerId: string): Promise<AnalysisResult> {
-    const traceId = this.performanceMonitor.startTrace('advanced-analysis');
+    const traceId = this.performanceMonitor.startTrace("advanced-analysis");
 
     try {
       const data = this.dataHub.getIntegratedData();
       const result = await this.performAnalysis(playerId, data);
 
       this.eventBus.publish({
-        type: 'advanced-analysis-completed',
+        type: "advanced-analysis-completed",
         payload: {
           playerId,
           result,
@@ -120,11 +120,18 @@ export class AdvancedAnalysisEngine {
     }
   }
 
-  private async performAnalysis(playerId: string, data: IntegratedData): Promise<AnalysisResult> {
+  private async performAnalysis(
+    playerId: string,
+    data: IntegratedData,
+  ): Promise<AnalysisResult> {
     const predictions = await this.generatePredictions(playerId, data);
     const trends = this.analyzeTrends(playerId, data);
     const risks = this.assessRisks(playerId, data, predictions);
-    const opportunities = this.identifyOpportunities(playerId, data, predictions);
+    const opportunities = this.identifyOpportunities(
+      playerId,
+      data,
+      predictions,
+    );
     const metaAnalysis = this.performMetaAnalysis(playerId, data, predictions);
 
     return {
@@ -139,9 +146,9 @@ export class AdvancedAnalysisEngine {
 
   private async generatePredictions(
     playerId: string,
-    data: IntegratedData
-  ): Promise<AnalysisResult['predictions']> {
-    const predictions: AnalysisResult['predictions'] = {};
+    data: IntegratedData,
+  ): Promise<AnalysisResult["predictions"]> {
+    const predictions: AnalysisResult["predictions"] = {};
     const projection = data.projections[playerId];
     const sentiment = data.sentiment[playerId];
 
@@ -153,16 +160,16 @@ export class AdvancedAnalysisEngine {
 
       // Historical performance factor
       factors.push({
-        type: 'historical',
+        type: "historical",
         impact: this.config.weightings.historical,
-        description: 'Based on historical performance patterns',
+        description: "Based on historical performance patterns",
       });
 
       // Current form factor
       factors.push({
-        type: 'current',
+        type: "current",
         impact: this.config.weightings.current,
-        description: 'Based on current form and recent performance',
+        description: "Based on current form and recent performance",
       });
 
       // Sentiment impact
@@ -170,7 +177,7 @@ export class AdvancedAnalysisEngine {
         const sentimentImpact = this.calculateSentimentImpact(sentiment);
         confidence += sentimentImpact * this.config.weightings.sentiment;
         factors.push({
-          type: 'sentiment',
+          type: "sentiment",
           impact: sentimentImpact,
           description: `Social sentiment analysis (${sentiment.sentiment.score.toFixed(2)})`,
         });
@@ -186,22 +193,31 @@ export class AdvancedAnalysisEngine {
     return predictions;
   }
 
-  private analyzeTrends(playerId: string, data: IntegratedData): AnalysisResult['trends'] {
-    const trends: AnalysisResult['trends'] = {};
+  private analyzeTrends(
+    playerId: string,
+    data: IntegratedData,
+  ): AnalysisResult["trends"] {
+    const trends: AnalysisResult["trends"] = {};
 
     // Analyze performance trends
-    Object.entries(data.projections[playerId]?.stats ?? {}).forEach(([metric, value]) => {
-      const trendKey = `${playerId}_${metric}`;
-      const trend = data.trends[trendKey];
+    Object.entries(data.projections[playerId]?.stats ?? {}).forEach(
+      ([metric, value]) => {
+        const trendKey = `${playerId}_${metric}`;
+        const trend = data.trends[trendKey];
 
-      if (trend) {
-        trends[metric] = {
-          direction: this.getTrendDirection(trend.change),
-          strength: trend.significance,
-          supporting_data: this.generateTrendSupportingData(metric, trend, data),
-        };
-      }
-    });
+        if (trend) {
+          trends[metric] = {
+            direction: this.getTrendDirection(trend.change),
+            strength: trend.significance,
+            supporting_data: this.generateTrendSupportingData(
+              metric,
+              trend,
+              data,
+            ),
+          };
+        }
+      },
+    );
 
     // Analyze sentiment trends
     const sentimentTrendKey = `${playerId}_sentiment`;
@@ -213,7 +229,7 @@ export class AdvancedAnalysisEngine {
         supporting_data: [
           `Sentiment volume: ${data.sentiment[playerId]?.sentiment.volume ?? 0}`,
           `Sentiment score change: ${sentimentTrend.change.toFixed(2)}`,
-          `Key topics: ${data.sentiment[playerId]?.keywords.join(', ') ?? 'none'}`,
+          `Key topics: ${data.sentiment[playerId]?.keywords.join(", ") ?? "none"}`,
         ],
       };
     }
@@ -226,9 +242,9 @@ export class AdvancedAnalysisEngine {
         direction: this.getTrendDirection(injuryTrend.change),
         strength: injuryTrend.significance,
         supporting_data: [
-          `Current status: ${data.injuries[playerId]?.status ?? 'healthy'}`,
+          `Current status: ${data.injuries[playerId]?.status ?? "healthy"}`,
           `Impact level: ${injuryTrend.value.toFixed(2)}`,
-          `Timeline: ${data.injuries[playerId]?.timeline ?? 'N/A'}`,
+          `Timeline: ${data.injuries[playerId]?.timeline ?? "N/A"}`,
         ],
       };
     }
@@ -236,19 +252,19 @@ export class AdvancedAnalysisEngine {
     return trends;
   }
 
-  private getTrendDirection(change: number): 'up' | 'down' | 'stable' {
-    if (Math.abs(change) < 0.05) return 'stable';
-    return change > 0 ? 'up' : 'down';
+  private getTrendDirection(change: number): "up" | "down" | "stable" {
+    if (Math.abs(change) < 0.05) return "stable";
+    return change > 0 ? "up" : "down";
   }
 
   private generateTrendSupportingData(
     metric: string,
-    trend: IntegratedData['trends'][string],
-    data: IntegratedData
+    trend: IntegratedData["trends"][string],
+    data: IntegratedData,
   ): string[] {
     return [
       `Current value: ${trend.value.toFixed(2)}`,
-      `Change: ${trend.change > 0 ? '+' : ''}${trend.change.toFixed(2)}`,
+      `Change: ${trend.change > 0 ? "+" : ""}${trend.change.toFixed(2)}`,
       `Significance: ${(trend.significance * 100).toFixed(1)}%`,
     ];
   }
@@ -256,9 +272,9 @@ export class AdvancedAnalysisEngine {
   private assessRisks(
     playerId: string,
     data: IntegratedData,
-    predictions: AnalysisResult['predictions']
-  ): AnalysisResult['risks'] {
-    const risks: AnalysisResult['risks'] = {};
+    predictions: AnalysisResult["predictions"],
+  ): AnalysisResult["risks"] {
+    const risks: AnalysisResult["risks"] = {};
 
     // Check injury risks
     const injury = data.injuries[playerId];
@@ -266,7 +282,7 @@ export class AdvancedAnalysisEngine {
       risks.injury = {
         level: this.calculateRiskLevel(injury.impact),
         factors: [`${injury.status}: ${injury.details}`],
-        mitigation: 'Monitor injury status and adjust predictions accordingly',
+        mitigation: "Monitor injury status and adjust predictions accordingly",
       };
     }
 
@@ -282,9 +298,9 @@ export class AdvancedAnalysisEngine {
   private identifyOpportunities(
     playerId: string,
     data: IntegratedData,
-    predictions: AnalysisResult['predictions']
-  ): AnalysisResult['opportunities'] {
-    const opportunities: AnalysisResult['opportunities'] = [];
+    predictions: AnalysisResult["predictions"],
+  ): AnalysisResult["opportunities"] {
+    const opportunities: AnalysisResult["opportunities"] = [];
 
     // Identify value opportunities
     // Implement opportunity identification
@@ -295,8 +311,8 @@ export class AdvancedAnalysisEngine {
   private performMetaAnalysis(
     playerId: string,
     data: IntegratedData,
-    predictions: AnalysisResult['predictions']
-  ): AnalysisResult['meta_analysis'] {
+    predictions: AnalysisResult["predictions"],
+  ): AnalysisResult["meta_analysis"] {
     return {
       data_quality: this.assessDataQuality(playerId, data),
       prediction_stability: this.assessPredictionStability(predictions),
@@ -305,14 +321,16 @@ export class AdvancedAnalysisEngine {
     };
   }
 
-  private calculateSentimentImpact(sentiment: IntegratedData['sentiment'][string]): number {
+  private calculateSentimentImpact(
+    sentiment: IntegratedData["sentiment"][string],
+  ): number {
     return sentiment.sentiment.score * (sentiment.sentiment.volume / 1000);
   }
 
-  private calculateRiskLevel(impact: number): 'LOW' | 'MEDIUM' | 'HIGH' {
-    if (impact < 0.3) return 'LOW';
-    if (impact < 0.7) return 'MEDIUM';
-    return 'HIGH';
+  private calculateRiskLevel(impact: number): "LOW" | "MEDIUM" | "HIGH" {
+    if (impact < 0.3) return "LOW";
+    if (impact < 0.7) return "MEDIUM";
+    return "HIGH";
   }
 
   private assessDataQuality(playerId: string, data: IntegratedData): number {
@@ -357,20 +375,28 @@ export class AdvancedAnalysisEngine {
     if (metrics.length === 0) return 0;
 
     const totalWeight = metrics.reduce((sum, m) => sum + m.weight, 0);
-    const weightedScore = metrics.reduce((sum, m) => sum + m.weight * m.score, 0);
+    const weightedScore = metrics.reduce(
+      (sum, m) => sum + m.weight * m.score,
+      0,
+    );
 
     return weightedScore / totalWeight;
   }
 
-  private calculateProjectionQuality(projection: IntegratedData['projections'][string]): number {
+  private calculateProjectionQuality(
+    projection: IntegratedData["projections"][string],
+  ): number {
     const age = Date.now() - projection.lastUpdated;
     const freshness = Math.max(0, 1 - age / (24 * 60 * 60 * 1000)); // Decay over 24 hours
     return freshness * projection.confidence;
   }
 
-  private calculateSentimentQuality(sentiment: IntegratedData['sentiment'][string]): number {
+  private calculateSentimentQuality(
+    sentiment: IntegratedData["sentiment"][string],
+  ): number {
     const volumeScore = Math.min(1, sentiment.sentiment.volume / 1000);
-    const sourceScore = Object.values(sentiment.sentiment.sources).reduce((a, b) => a + b, 0) / 3;
+    const sourceScore =
+      Object.values(sentiment.sentiment.sources).reduce((a, b) => a + b, 0) / 3;
     return (volumeScore + sourceScore) / 2;
   }
 
@@ -379,7 +405,9 @@ export class AdvancedAnalysisEngine {
     return 0.85; // Placeholder
   }
 
-  private calculateInjuryDataQuality(injury: IntegratedData['injuries'][string]): number {
+  private calculateInjuryDataQuality(
+    injury: IntegratedData["injuries"][string],
+  ): number {
     return injury.impact > 0 ? 1 : 0.8;
   }
 
@@ -388,10 +416,13 @@ export class AdvancedAnalysisEngine {
     return null;
   }
 
-  private assessPredictionStability(predictions: AnalysisResult['predictions']): number {
-    const stabilityScores = Object.values(predictions).map(prediction => {
+  private assessPredictionStability(
+    predictions: AnalysisResult["predictions"],
+  ): number {
+    const stabilityScores = Object.values(predictions).map((prediction) => {
       const factorVariance = this.calculateFactorVariance(prediction.factors);
-      const confidenceStability = prediction.confidence > 0.8 ? 1 : prediction.confidence;
+      const confidenceStability =
+        prediction.confidence > 0.8 ? 1 : prediction.confidence;
       return (factorVariance + confidenceStability) / 2;
     });
 
@@ -402,19 +433,23 @@ export class AdvancedAnalysisEngine {
   private calculateFactorVariance(factors: Array<{ impact: number }>): number {
     if (factors.length < 2) return 1;
 
-    const impacts = factors.map(f => f.impact);
+    const impacts = factors.map((f) => f.impact);
     const mean = impacts.reduce((a, b) => a + b, 0) / impacts.length;
     const variance =
-      impacts.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / impacts.length;
+      impacts.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) /
+      impacts.length;
 
     return Math.max(0, 1 - variance);
   }
 
-  private assessMarketEfficiency(playerId: string, data: IntegratedData): number {
+  private assessMarketEfficiency(
+    playerId: string,
+    data: IntegratedData,
+  ): number {
     const marketMetrics: number[] = [];
 
     // Check price movement consistency
-    Object.values(data.odds).forEach(odds => {
+    Object.values(data.odds).forEach((odds) => {
       if (odds.movement.magnitude > 0) {
         const efficiency = 1 - Math.min(1, odds.movement.magnitude);
         marketMetrics.push(efficiency);
@@ -431,7 +466,10 @@ export class AdvancedAnalysisEngine {
     return marketMetrics.reduce((a, b) => a + b, 0) / marketMetrics.length;
   }
 
-  private assessSentimentAlignment(playerId: string, data: IntegratedData): number {
+  private assessSentimentAlignment(
+    playerId: string,
+    data: IntegratedData,
+  ): number {
     const sentiment = data.sentiment[playerId];
     if (!sentiment) return 0.5;
 
@@ -444,7 +482,9 @@ export class AdvancedAnalysisEngine {
 
     // Calculate sentiment consistency
     const sentimentTrend = data.trends[`${playerId}_sentiment`];
-    const consistency = sentimentTrend ? 1 - Math.min(1, Math.abs(sentimentTrend.change)) : 0.5;
+    const consistency = sentimentTrend
+      ? 1 - Math.min(1, Math.abs(sentimentTrend.change))
+      : 0.5;
 
     // Calculate volume impact
     const volumeImpact = Math.min(1, sentiment.sentiment.volume / 1000);

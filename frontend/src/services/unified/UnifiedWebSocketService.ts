@@ -1,9 +1,8 @@
-import { BaseService } from './BaseService.js';
-import { UnifiedServiceRegistry } from './UnifiedServiceRegistry.js';
+import { BaseService } from "./BaseService.js";
+import { UnifiedServiceRegistry } from "./UnifiedServiceRegistry.js";
 
-
-import { WebSocketMessage } from '../../types/webSocket.js';
-import { toast } from 'react-toastify';
+import { WebSocketMessage } from "../../types/webSocket.js";
+import { toast } from "react-toastify";
 
 export interface WebSocketConfig {
   reconnectAttempts: number;
@@ -20,7 +19,10 @@ export class UnifiedWebSocketService extends BaseService {
   private reconnectAttempts = 0;
   private messageQueue: WebSocketMessage[] = [];
   private isProcessingQueue = false;
-  private subscriptions: Map<string, Set<(data: WebSocketMessage['data']) => void>> = new Map();
+  private subscriptions: Map<
+    string,
+    Set<(data: WebSocketMessage["data"]) => void>
+  > = new Map();
   private pingInterval: NodeJS.Timeout | null = null;
   private pongTimeout: NodeJS.Timeout | null = null;
   private lastPongTime: number = 0;
@@ -37,21 +39,34 @@ export class UnifiedWebSocketService extends BaseService {
       autoReconnect: true,
       debug: false,
     },
-    serviceRegistry: UnifiedServiceRegistry
+    serviceRegistry: UnifiedServiceRegistry,
   ) {
-    super('UnifiedWebSocketService', serviceRegistry);
+    super("UnifiedWebSocketService", serviceRegistry);
     this.wsConfig = wsConfig;
   }
 
   async connect(): Promise<void> {
     try {
+      // Skip connection if no valid WebSocket URL is configured
+      if (
+        !this.url ||
+        this.url.includes("api.betproai.com") ||
+        this.url === "wss://api.betproai.com/ws"
+      ) {
+        this.logger.warn(
+          "WebSocket connection skipped: No valid WebSocket URL configured. Set VITE_WS_URL environment variable to enable WebSocket functionality.",
+          this.name,
+        );
+        return;
+      }
+
       this.socket = new WebSocket(this.url);
       this.setupEventHandlers();
       this.startPingInterval();
-      this.logger.info('WebSocket connected', this.name);
+      this.logger.info("WebSocket connected", this.name);
     } catch (error) {
       this.handleError(error, {
-        code: 'WEBSOCKET_CONNECT_ERROR',
+        code: "WEBSOCKET_CONNECT_ERROR",
         source: this.name,
         details: { url: this.url },
       });
@@ -66,10 +81,13 @@ export class UnifiedWebSocketService extends BaseService {
     }
     this.stopPingInterval();
     this.clearPongTimeout();
-    this.logger.info('WebSocket disconnected', this.name);
+    this.logger.info("WebSocket disconnected", this.name);
   }
 
-  subscribe(channel: string, callback: (data: WebSocketMessage['data']) => void): () => void {
+  subscribe(
+    channel: string,
+    callback: (data: WebSocketMessage["data"]) => void,
+  ): () => void {
     if (!this.subscriptions.has(channel)) {
       this.subscriptions.set(channel, new Set());
     }
@@ -77,7 +95,7 @@ export class UnifiedWebSocketService extends BaseService {
 
     // Send subscription message to server
     this.send({
-      event: 'subscribe',
+      event: "subscribe",
       data: { channel },
       timestamp: Date.now(),
     });
@@ -90,7 +108,7 @@ export class UnifiedWebSocketService extends BaseService {
           this.subscriptions.delete(channel);
           // Send unsubscribe message to server
           this.send({
-            event: 'unsubscribe',
+            event: "unsubscribe",
             data: { channel },
             timestamp: Date.now(),
           });
@@ -109,7 +127,7 @@ export class UnifiedWebSocketService extends BaseService {
       this.socket.send(JSON.stringify(message));
     } catch (error) {
       this.handleError(error, {
-        code: 'WEBSOCKET_SEND_ERROR',
+        code: "WEBSOCKET_SEND_ERROR",
         source: this.name,
         details: { message },
       });
@@ -123,28 +141,28 @@ export class UnifiedWebSocketService extends BaseService {
     this.socket.onopen = () => {
       this.reconnectAttempts = 0;
       this.processMessageQueue();
-      this.logger.info('WebSocket connection established', this.name);
+      this.logger.info("WebSocket connection established", this.name);
     };
 
     this.socket.onclose = () => {
       this.handleDisconnect();
     };
 
-    this.socket.onerror = error => {
+    this.socket.onerror = (error) => {
       this.handleError(error, {
-        code: 'WEBSOCKET_ERROR',
+        code: "WEBSOCKET_ERROR",
         source: this.name,
-        details: { event: 'error' },
+        details: { event: "error" },
       });
     };
 
-    this.socket.onmessage = event => {
+    this.socket.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
         this.handleMessage(message);
       } catch (error) {
         this.handleError(error, {
-          code: 'WEBSOCKET_MESSAGE_ERROR',
+          code: "WEBSOCKET_MESSAGE_ERROR",
           source: this.name,
           details: { data: event.data },
         });
@@ -154,12 +172,12 @@ export class UnifiedWebSocketService extends BaseService {
 
   private handleMessage(message: WebSocketMessage): void {
     // Handle ping/pong
-    if (message.event === 'ping') {
-      this.send({ event: 'pong', data: null, timestamp: Date.now() });
+    if (message.event === "ping") {
+      this.send({ event: "pong", data: null, timestamp: Date.now() });
       return;
     }
 
-    if (message.event === 'pong') {
+    if (message.event === "pong") {
       this.lastPongTime = Date.now();
       this.clearPongTimeout();
       return;
@@ -168,12 +186,12 @@ export class UnifiedWebSocketService extends BaseService {
     // Handle channel messages
     if (message.event && this.subscriptions.has(message.event)) {
       const callbacks = this.subscriptions.get(message.event)!;
-      callbacks.forEach(callback => {
+      callbacks.forEach((callback) => {
         try {
           callback(message.data);
         } catch (error) {
           this.handleError(error, {
-            code: 'WEBSOCKET_CALLBACK_ERROR',
+            code: "WEBSOCKET_CALLBACK_ERROR",
             source: this.name,
             details: { event: message.event },
           });
@@ -182,13 +200,13 @@ export class UnifiedWebSocketService extends BaseService {
     }
 
     // Handle system messages
-    if (message.event === 'error') {
+    if (message.event === "error") {
       this.handleError(message.data, {
-        code: 'WEBSOCKET_SYSTEM_ERROR',
+        code: "WEBSOCKET_SYSTEM_ERROR",
         source: this.name,
         details: message.data,
       });
-      toast.error(message.data.message || 'WebSocket error occurred');
+      toast.error(message.data.message || "WebSocket error occurred");
     }
   }
 
@@ -196,20 +214,24 @@ export class UnifiedWebSocketService extends BaseService {
     this.stopPingInterval();
     this.clearPongTimeout();
 
-    if (this.wsConfig.autoReconnect && this.reconnectAttempts < this.wsConfig.reconnectAttempts) {
+    if (
+      this.wsConfig.autoReconnect &&
+      this.reconnectAttempts < this.wsConfig.reconnectAttempts
+    ) {
       this.reconnectAttempts++;
       const delay = Math.min(
-        this.wsConfig.reconnectInterval * Math.pow(2, this.reconnectAttempts - 1),
-        30000
+        this.wsConfig.reconnectInterval *
+          Math.pow(2, this.reconnectAttempts - 1),
+        30000,
       );
       setTimeout(() => this.connect(), delay);
       this.logger.warn(
         `Attempting to reconnect (${this.reconnectAttempts}/${this.wsConfig.reconnectAttempts})`,
-        this.name
+        this.name,
       );
     } else {
-      this.logger.error('WebSocket connection failed', this.name);
-      toast.error('Lost connection to server. Please refresh the page.');
+      this.logger.error("WebSocket connection failed", this.name);
+      toast.error("Lost connection to server. Please refresh the page.");
     }
   }
 
@@ -221,7 +243,11 @@ export class UnifiedWebSocketService extends BaseService {
   }
 
   private async processMessageQueue(): Promise<void> {
-    if (this.isProcessingQueue || !this.socket || this.socket.readyState !== WebSocket.OPEN) {
+    if (
+      this.isProcessingQueue ||
+      !this.socket ||
+      this.socket.readyState !== WebSocket.OPEN
+    ) {
       return;
     }
 
@@ -232,7 +258,7 @@ export class UnifiedWebSocketService extends BaseService {
         this.socket.send(JSON.stringify(message));
       } catch (error) {
         this.handleError(error, {
-          code: 'WEBSOCKET_QUEUE_ERROR',
+          code: "WEBSOCKET_QUEUE_ERROR",
           source: this.name,
           details: { message },
         });
@@ -246,7 +272,7 @@ export class UnifiedWebSocketService extends BaseService {
   private startPingInterval(): void {
     this.stopPingInterval();
     this.pingInterval = setInterval(() => {
-      this.send({ event: 'ping', data: null, timestamp: Date.now() });
+      this.send({ event: "ping", data: null, timestamp: Date.now() });
       this.setPongTimeout();
     }, this.wsConfig.pingInterval);
   }
@@ -261,7 +287,7 @@ export class UnifiedWebSocketService extends BaseService {
   private setPongTimeout(): void {
     this.clearPongTimeout();
     this.pongTimeout = setTimeout(() => {
-      this.logger.warn('Pong timeout - reconnecting', this.name);
+      this.logger.warn("Pong timeout - reconnecting", this.name);
       this.disconnect();
       this.connect();
     }, this.wsConfig.pongTimeout);

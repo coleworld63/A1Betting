@@ -16,7 +16,9 @@ interface SocialAnalysisRequest {
 }
 
 export class SocialDynamicsService {
-  async analyzeSocialFactors(request: SocialAnalysisRequest): Promise<SocialData> {
+  async analyzeSocialFactors(
+    _request: SocialAnalysisRequest,
+  ): Promise<SocialData> {
     // In a real implementation, this would analyze social factors
     // For now, return mock data
     return {
@@ -28,27 +30,30 @@ export class SocialDynamicsService {
     };
   }
 
-  private calculateTeamCohesion(teamId: string, teamData: any): number {
+  private calculateTeamCohesion(_teamId: string, _teamData: any): number {
     // Calculate team cohesion and chemistry
     return 0.85;
   }
 
-  private calculateHomeAdvantage(venue: string, teamId: string): number {
+  private calculateHomeAdvantage(_venue: string, _teamId: string): number {
     // Calculate home field advantage
     return 0.75;
   }
 
-  private calculateCrowdImpact(venue: string, expectedAttendance: number): number {
+  private calculateCrowdImpact(
+    _venue: string,
+    _expectedAttendance: number,
+  ): number {
     // Calculate impact of crowd support
     return 0.8;
   }
 
-  private calculateRivalryFactor(homeTeam: string, awayTeam: string): number {
+  private calculateRivalryFactor(_homeTeam: string, _awayTeam: string): number {
     // Calculate rivalry intensity
     return 0.7;
   }
 
-  private calculateMediaPressure(teamId: string, mediaCoverage: any): number {
+  private calculateMediaPressure(_teamId: string, _mediaCoverage: any): number {
     // Calculate media pressure and attention
     return 0.65;
   }

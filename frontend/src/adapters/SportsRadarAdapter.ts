@@ -1,6 +1,6 @@
-import { DataSource } from '../unified/DataSource.js';
-import { EventBus } from '../unified/EventBus.js';
-import { PerformanceMonitor } from '../unified/PerformanceMonitor.js';
+import { DataSource } from "../unified/DataSource.js";
+import { EventBus } from "../unified/EventBus.js";
+import { PerformanceMonitor } from "../unified/PerformanceMonitor.js";
 
 export interface OddsProvider {
   getOdds(eventId: string): Promise<unknown>;
@@ -42,9 +42,11 @@ export interface SportsRadarData {
   }[];
 }
 
-export class SportsRadarAdapter implements DataSource<SportsRadarData>, OddsProvider {
-  public readonly id = 'sports-radar';
-  public readonly type = 'sports-data';
+export class SportsRadarAdapter
+  implements DataSource<SportsRadarData>, OddsProvider
+{
+  public readonly id = "sports-radar";
+  public readonly type = "sports-data";
 
   public async fetchData(): Promise<SportsRadarData> {
     return this.fetch();
@@ -64,21 +66,23 @@ export class SportsRadarAdapter implements DataSource<SportsRadarData>, OddsProv
     this.eventBus = EventBus.getInstance();
     this.performanceMonitor = PerformanceMonitor.getInstance();
     this.config = {
-      apiKey: process.env.SPORTRADAR_API_KEY || '',
-      baseUrl: 'https://api.sportradar.com/sports/v1',
+      apiKey: import.meta.env.VITE_SPORTRADAR_API_KEY || "",
+      baseUrl: "https://api.sportradar.com/sports/v1",
       cacheTimeout: 10000, // Assuming a default cache timeout
     };
     this.cache = {
       data: null,
       timestamp: 0,
     };
-    this.apiKey = process.env.SPORTRADAR_API_KEY || null;
-    this.baseUrl = 'https://api.sportradar.com/sports/v1';
+    this.apiKey = import.meta.env.VITE_SPORTRADAR_API_KEY || null;
+    this.baseUrl = "https://api.sportradar.com/sports/v1";
   }
 
   public async isAvailable(): Promise<boolean> {
     try {
-      const response = await fetch(`${this.config.baseUrl}/status?api_key=${this.config.apiKey}`);
+      const response = await fetch(
+        `${this.config.baseUrl}/status?api_key=${this.config.apiKey}`,
+      );
       return response.ok;
     } catch {
       return false;
@@ -89,7 +93,7 @@ export class SportsRadarAdapter implements DataSource<SportsRadarData>, OddsProv
    * Fetches the latest SportsRadar data, using cache if valid.
    */
   public async fetch(): Promise<SportsRadarData> {
-    const traceId = this.performanceMonitor.startTrace('sports-radar-fetch');
+    const traceId = this.performanceMonitor.startTrace("sports-radar-fetch");
 
     try {
       if (this.isCacheValid()) {
@@ -104,7 +108,7 @@ export class SportsRadarAdapter implements DataSource<SportsRadarData>, OddsProv
       };
 
       this.eventBus.publish({
-        type: 'sports-radar-updated',
+        type: "sports-radar-updated",
         payload: { data },
       });
 
@@ -118,7 +122,7 @@ export class SportsRadarAdapter implements DataSource<SportsRadarData>, OddsProv
 
   private async fetchSportsRadarData(): Promise<SportsRadarData> {
     const response = await fetch(
-      `${this.config.baseUrl}/games/schedule?api_key=${this.config.apiKey}`
+      `${this.config.baseUrl}/games/schedule?api_key=${this.config.apiKey}`,
     );
 
     if (!response.ok) {
@@ -129,7 +133,10 @@ export class SportsRadarAdapter implements DataSource<SportsRadarData>, OddsProv
   }
 
   private isCacheValid(): boolean {
-    return this.cache.data !== null && Date.now() - this.cache.timestamp < this.config.cacheTimeout;
+    return (
+      this.cache.data !== null &&
+      Date.now() - this.cache.timestamp < this.config.cacheTimeout
+    );
   }
 
   public clearCache(): void {
@@ -139,8 +146,8 @@ export class SportsRadarAdapter implements DataSource<SportsRadarData>, OddsProv
     };
   }
 
-  public async connect(): Promise<void> { }
-  public async disconnect(): Promise<void> { }
+  public async connect(): Promise<void> {}
+  public async disconnect(): Promise<void> {}
   public async getData(): Promise<SportsRadarData> {
     return this.cache.data as SportsRadarData;
   }
@@ -153,7 +160,7 @@ export class SportsRadarAdapter implements DataSource<SportsRadarData>, OddsProv
 
   async getOdds(eventId: string): Promise<unknown> {
     if (!this.apiKey) {
-      console.warn('SportsRadar API key not configured. Skipping odds fetch.');
+      console.warn("SportsRadar API key not configured. Skipping odds fetch.");
       return null;
     }
 
@@ -161,7 +168,7 @@ export class SportsRadarAdapter implements DataSource<SportsRadarData>, OddsProv
       const response = await fetch(`${this.baseUrl}/events/${eventId}/odds`, {
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
-          Accept: 'application/json',
+          Accept: "application/json",
         },
       });
 
@@ -171,14 +178,16 @@ export class SportsRadarAdapter implements DataSource<SportsRadarData>, OddsProv
 
       return await response.json();
     } catch (error) {
-      console.error('Error fetching odds from SportsRadar:', error);
+      console.error("Error fetching odds from SportsRadar:", error);
       return null;
     }
   }
 
   async getEventDetails(eventId: string): Promise<unknown> {
     if (!this.apiKey) {
-      console.warn('SportsRadar API key not configured. Skipping event details fetch.');
+      console.warn(
+        "SportsRadar API key not configured. Skipping event details fetch.",
+      );
       return null;
     }
 
@@ -186,7 +195,7 @@ export class SportsRadarAdapter implements DataSource<SportsRadarData>, OddsProv
       const response = await fetch(`${this.baseUrl}/events/${eventId}`, {
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
-          Accept: 'application/json',
+          Accept: "application/json",
         },
       });
 
@@ -196,7 +205,7 @@ export class SportsRadarAdapter implements DataSource<SportsRadarData>, OddsProv
 
       return await response.json();
     } catch (error) {
-      console.error('Error fetching event details from SportsRadar:', error);
+      console.error("Error fetching event details from SportsRadar:", error);
       return null;
     }
   }

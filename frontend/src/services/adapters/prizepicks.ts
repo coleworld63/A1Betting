@@ -1,7 +1,11 @@
-import { PrizePicksProps, PrizePicksPlayer, PrizePicksLines } from '../../types/prizePicks';
+import {
+  PrizePicksProps,
+  PrizePicksPlayer,
+  PrizePicksLines,
+} from "../../types/prizePicks";
 // No separate PrizePicksAdapter file exists; using implementation from this file.
-import { logger } from '../logger';
-import { cache } from '../cache';
+import { logger } from "../logger";
+import { cache } from "../cache";
 
 export class PrizePicksAdapterImpl {
   private static instance: PrizePicksAdapterImpl;
@@ -9,8 +13,9 @@ export class PrizePicksAdapterImpl {
   private apiKey: string;
 
   private constructor() {
-    this.baseUrl = process.env.VITE_PRIZEPICKS_API_URL || 'https://api.prizepicks.com';
-    this.apiKey = process.env.VITE_PRIZEPICKS_API_KEY || '';
+    this.baseUrl =
+      import.meta.env.VITE_PRIZEPICKS_API_URL || "https://api.prizepicks.com";
+    this.apiKey = import.meta.env.VITE_PRIZEPICKS_API_KEY || "";
   }
 
   public static getInstance(): PrizePicksAdapterImpl {
@@ -32,9 +37,9 @@ export class PrizePicksAdapterImpl {
       }
 
       const response = await fetch(`${this.baseUrl}/props`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify(params),
@@ -48,12 +53,14 @@ export class PrizePicksAdapterImpl {
       await cache.set(cacheKey, props);
       return props;
     } catch (error) {
-      logger.error('Failed to fetch PrizePicks props', { error, params });
+      logger.error("Failed to fetch PrizePicks props", { error, params });
       throw error;
     }
   }
 
-  public async fetchPlayers(params: { sports: string[] }): Promise<PrizePicksPlayer[]> {
+  public async fetchPlayers(params: {
+    sports: string[];
+  }): Promise<PrizePicksPlayer[]> {
     try {
       const cacheKey = `prizepicks:players:${JSON.stringify(params)}`;
       const cachedPlayers = await cache.get(cacheKey);
@@ -62,9 +69,9 @@ export class PrizePicksAdapterImpl {
       }
 
       const response = await fetch(`${this.baseUrl}/players`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify(params),
@@ -78,12 +85,14 @@ export class PrizePicksAdapterImpl {
       await cache.set(cacheKey, players);
       return players;
     } catch (error) {
-      logger.error('Failed to fetch PrizePicks players', { error, params });
+      logger.error("Failed to fetch PrizePicks players", { error, params });
       throw error;
     }
   }
 
-  public async fetchLines(params: { propIds: string[] }): Promise<PrizePicksLines[]> {
+  public async fetchLines(params: {
+    propIds: string[];
+  }): Promise<PrizePicksLines[]> {
     try {
       const cacheKey = `prizepicks:lines:${JSON.stringify(params)}`;
       const cachedLines = await cache.get(cacheKey);
@@ -92,9 +101,9 @@ export class PrizePicksAdapterImpl {
       }
 
       const response = await fetch(`${this.baseUrl}/lines`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify(params),
@@ -108,7 +117,7 @@ export class PrizePicksAdapterImpl {
       await cache.set(cacheKey, lines);
       return lines;
     } catch (error) {
-      logger.error('Failed to fetch PrizePicks lines', { error, params });
+      logger.error("Failed to fetch PrizePicks lines", { error, params });
       throw error;
     }
   }

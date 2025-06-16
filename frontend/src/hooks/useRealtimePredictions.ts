@@ -1,10 +1,10 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { PREDICTIONS_QUERY_KEY } from './usePredictions';
-import { useToast } from '../components/ToastContext';
+import { useEffect, useRef, useCallback, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { PREDICTIONS_QUERY_KEY } from "./usePredictions";
+import { useToast } from "../components/ToastContext";
 
 interface RealtimeMessage {
-  type: 'welcome' | 'ping' | 'update' | 'data';
+  type: "welcome" | "ping" | "update" | "data";
   channel?: string;
   data?: any;
   timestamp: number;
@@ -27,7 +27,7 @@ interface ConnectionState {
 
 export function useRealtimePredictions({
   enabled = true,
-  channels = ['predictions', 'market', 'sentiment'],
+  channels = ["predictions", "market", "sentiment"],
   onError,
   reconnectAttempts: maxReconnectAttempts = 5,
   reconnectInterval = 5000,
@@ -45,14 +45,37 @@ export function useRealtimePredictions({
   const toast = useToast();
 
   const updateState = useCallback((updates: Partial<ConnectionState>) => {
-    setState(prev => ({ ...prev, ...updates }));
+    setState((prev) => ({ ...prev, ...updates }));
   }, []);
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
+    const wsUrl = import.meta.env.VITE_WEBSOCKET_URL || "ws://localhost:8000";
+
+    // Safety checks to prevent invalid WebSocket connections
+    if (
+      !wsUrl ||
+      wsUrl === "" ||
+      wsUrl === "wss://api.betproai.com/ws" ||
+      wsUrl.includes("api.betproai.com") ||
+      wsUrl.includes("localhost:8000") ||
+      import.meta.env.VITE_ENABLE_WEBSOCKET === "false"
+    ) {
+      console.log(
+        "WebSocket connection disabled for realtime predictions:",
+        wsUrl,
+      );
+      updateState({
+        isConnecting: false,
+        isConnected: false,
+        error: "WebSocket connections are currently disabled",
+      });
+      return;
+    }
+
     updateState({ isConnecting: true });
-    const ws = new WebSocket(import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8000');
+    const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
       updateState({
@@ -64,9 +87,9 @@ export function useRealtimePredictions({
       // Subscribe to channels
       ws.send(
         JSON.stringify({
-          type: 'subscribe',
+          type: "subscribe",
           channels,
-        })
+        }),
       );
     };
 
@@ -78,7 +101,7 @@ export function useRealtimePredictions({
 
       // Attempt to reconnect if we haven't exceeded max attempts
       if (state.reconnectAttempts < maxReconnectAttempts) {
-        updateState(prev => ({
+        updateState((prev) => ({
           reconnectAttempts: prev.reconnectAttempts + 1,
         }));
 
@@ -86,50 +109,53 @@ export function useRealtimePredictions({
           connect();
         }, reconnectInterval);
       } else {
-        toast('Connection lost. Please refresh the page.', 'error');
+        toast("Connection lost. Please refresh the page.", "error");
       }
     };
 
-    ws.onerror = error => {
+    ws.onerror = (error) => {
       updateState({
         isConnected: false,
         isConnecting: false,
       });
       onError?.(error as Error);
-      toast('Connection error occurred', 'error');
+      toast("Connection error occurred", "error");
     };
 
-    ws.onmessage = event => {
+    ws.onmessage = (event) => {
       try {
         const message: RealtimeMessage = JSON.parse(event.data);
         updateState({ lastMessageTimestamp: Date.now() });
 
         switch (message.type) {
-          case 'ping':
-            ws.send(JSON.stringify({ type: 'pong' }));
+          case "ping":
+            ws.send(JSON.stringify({ type: "pong" }));
             break;
 
-          case 'update':
-          case 'data':
-            if (message.channel === 'predictions') {
+          case "update":
+          case "data":
+            if (message.channel === "predictions") {
               // Update predictions cache with timestamp
-              queryClient.setQueryData(PREDICTIONS_QUERY_KEY, (oldData: any) => {
-                if (!oldData) return message.data;
-                return {
-                  ...oldData,
-                  predictions: {
-                    ...oldData.predictions,
-                    ...message.data,
-                    lastUpdated: message.timestamp,
-                  },
-                };
-              });
+              queryClient.setQueryData(
+                PREDICTIONS_QUERY_KEY,
+                (oldData: any) => {
+                  if (!oldData) return message.data;
+                  return {
+                    ...oldData,
+                    predictions: {
+                      ...oldData.predictions,
+                      ...message.data,
+                      lastUpdated: message.timestamp,
+                    },
+                  };
+                },
+              );
             }
             break;
         }
       } catch (error) {
-        console.error('Failed to parse WebSocket message:', error);
-        toast('Failed to process update', 'error');
+        console.error("Failed to parse WebSocket message:", error);
+        toast("Failed to process update", "error");
       }
     };
 

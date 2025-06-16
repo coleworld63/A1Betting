@@ -1,7 +1,13 @@
-import * as Sentry from '@sentry/react'; // For error tracking and some performance monitoring
-import { Span, Transaction, MeasurementUnit, Primitive, SeverityLevel } from '@sentry/types';
+import * as Sentry from "@sentry/react"; // For error tracking and some performance monitoring
+import {
+  Span,
+  Transaction,
+  MeasurementUnit,
+  Primitive,
+  SeverityLevel,
+} from "@sentry/types";
 
-import type { User } from '../types/core.ts'; // Assuming User type might be used for context
+import type { User } from "../types/core.ts"; // Assuming User type might be used for context
 // import { PerformanceTrackingService } from '../services/performanceTracking.ts'; // Uncomment if used
 
 // src/core/UnifiedMonitor.ts
@@ -24,33 +30,38 @@ import type { User } from '../types/core.ts'; // Assuming User type might be use
  */
 
 export interface Metric {
-  name: string;         // e.g., 'api_request_duration_ms', 'prediction_accuracy'
+  name: string; // e.g., 'api_request_duration_ms', 'prediction_accuracy'
   value: number;
   tags?: Record<string, string | number | boolean>; // e.g., { endpoint: '/users', model: 'v2' }
   timestamp?: Date;
 }
 
 export class UnifiedMonitor {
-    startTrace(name: string, type: string) {
-        
-        return {
-            name,
-            type,
-            startTime: Date.now(),
-            setHttpStatus: (status: number) => {
-                
-            }
-        };
-    }
+  private static instance: UnifiedMonitor;
 
-    endTrace(trace: any) {
-        const duration = Date.now() - trace.startTime;
-        
+  public static getInstance(): UnifiedMonitor {
+    if (!UnifiedMonitor.instance) {
+      UnifiedMonitor.instance = new UnifiedMonitor();
     }
+    return UnifiedMonitor.instance;
+  }
 
-    reportError(error: any, context: any) {
-        console.error('Error:', error, 'Context:', context);
-    }
+  startTrace(name: string, type: string) {
+    return {
+      name,
+      type,
+      startTime: Date.now(),
+      setHttpStatus: (status: number) => {},
+    };
+  }
+
+  endTrace(trace: any) {
+    const duration = Date.now() - trace.startTime;
+  }
+
+  reportError(error: any, context: any) {
+    console.error("Error:", error, "Context:", context);
+  }
 }
 
 export const unifiedMonitor = new UnifiedMonitor();
@@ -61,4 +72,4 @@ export const unifiedMonitor = new UnifiedMonitor();
 // const trace = unifiedMonitor.startTrace('checkout_flow', 'user.action');
 // // ... some operations ...
 // unifiedMonitor.recordMetric({ name: 'items_in_cart', value: 3, type: 'gauge'});
-// unifiedMonitor.endTrace(trace); 
+// unifiedMonitor.endTrace(trace);

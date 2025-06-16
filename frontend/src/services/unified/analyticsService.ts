@@ -1,19 +1,19 @@
-import axios from 'axios';
-import { toast } from 'react-toastify';
-import UnifiedPredictionService from './predictionService';
-import UnifiedBettingService from './bettingService';
+import axios from "axios";
+import { toast } from "react-toastify";
+import UnifiedPredictionService from "./predictionService";
+import UnifiedBettingService from "./bettingService";
 import type {
   BettingMetrics,
   ModelPerformance,
   BettingStats,
   LineMovement,
   ArbitrageOpportunity,
-} from '../../types/betting';
+} from "../../types/betting";
 
 interface AnalyticsConfig {
   autoRefresh: boolean;
   refreshInterval: number;
-  metricsWindow: 'day' | 'week' | 'month' | 'year';
+  metricsWindow: "day" | "week" | "month" | "year";
   includeArbitrage: boolean;
   includeLineMovement: boolean;
 }
@@ -25,7 +25,7 @@ class UnifiedAnalyticsService {
   private config: AnalyticsConfig = {
     autoRefresh: true,
     refreshInterval: 30000,
-    metricsWindow: 'week',
+    metricsWindow: "week",
     includeArbitrage: true,
     includeLineMovement: true,
   };
@@ -35,7 +35,7 @@ class UnifiedAnalyticsService {
   private lastUpdate: number = 0;
 
   protected constructor() {
-    this.apiUrl = process.env.VITE_API_URL || 'http://localhost:8000';
+    this.apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
     this.predictionService = UnifiedPredictionService.getInstance();
     this.bettingService = UnifiedBettingService.getInstance();
   }
@@ -52,13 +52,13 @@ class UnifiedAnalyticsService {
       const response = await axios.get(`${this.apiUrl}/api/analytics/metrics`, {
         params: { window: this.config.metricsWindow },
       });
-      this.metricsCache.set('metrics', response.data);
+      this.metricsCache.set("metrics", response.data);
       this.lastUpdate = Date.now();
       return response.data;
     } catch (error) {
-      console.error('Error fetching betting metrics:', error);
-      toast.error('Failed to fetch betting metrics');
-      return this.metricsCache.get('metrics') || this.getDefaultMetrics();
+      console.error("Error fetching betting metrics:", error);
+      toast.error("Failed to fetch betting metrics");
+      return this.metricsCache.get("metrics") || this.getDefaultMetrics();
     }
   }
 
@@ -80,12 +80,14 @@ class UnifiedAnalyticsService {
 
   public async getModelPerformance(): Promise<ModelPerformance[]> {
     try {
-      const response = await axios.get(`${this.apiUrl}/api/analytics/model-performance`);
-      this.metricsCache.set('modelPerformance', response.data);
+      const response = await axios.get(
+        `${this.apiUrl}/api/analytics/model-performance`,
+      );
+      this.metricsCache.set("modelPerformance", response.data);
       return response.data;
     } catch (error) {
-      console.error('Error fetching model performance:', error);
-      return this.metricsCache.get('modelPerformance') || [];
+      console.error("Error fetching model performance:", error);
+      return this.metricsCache.get("modelPerformance") || [];
     }
   }
 
@@ -94,11 +96,11 @@ class UnifiedAnalyticsService {
       const response = await axios.get(`${this.apiUrl}/api/analytics/stats`, {
         params: { window: this.config.metricsWindow },
       });
-      this.metricsCache.set('stats', response.data);
+      this.metricsCache.set("stats", response.data);
       return response.data;
     } catch (error) {
-      console.error('Error fetching betting stats:', error);
-      return this.metricsCache.get('stats') || this.getDefaultStats();
+      console.error("Error fetching betting stats:", error);
+      return this.metricsCache.get("stats") || this.getDefaultStats();
     }
   }
 
@@ -109,8 +111,8 @@ class UnifiedAnalyticsService {
       average_odds: 0,
       total_profit: 0,
       roi: 0,
-      best_performing_model: '',
-      worst_performing_model: '',
+      best_performing_model: "",
+      worst_performing_model: "",
       time_period: this.config.metricsWindow,
     };
   }
@@ -121,12 +123,15 @@ class UnifiedAnalyticsService {
     }
 
     try {
-      const response = await axios.get(`${this.apiUrl}/api/analytics/line-movements`, {
-        params: { market_id: marketId },
-      });
+      const response = await axios.get(
+        `${this.apiUrl}/api/analytics/line-movements`,
+        {
+          params: { market_id: marketId },
+        },
+      );
       return response.data;
     } catch (error) {
-      console.error('Error fetching line movements:', error);
+      console.error("Error fetching line movements:", error);
       return [];
     }
   }
@@ -137,22 +142,27 @@ class UnifiedAnalyticsService {
     }
 
     try {
-      const response = await axios.get(`${this.apiUrl}/api/analytics/arbitrage`);
+      const response = await axios.get(
+        `${this.apiUrl}/api/analytics/arbitrage`,
+      );
       return response.data;
     } catch (error) {
-      console.error('Error fetching arbitrage opportunities:', error);
+      console.error("Error fetching arbitrage opportunities:", error);
       return [];
     }
   }
 
   public async getPerformanceBreakdown(): Promise<any> {
     try {
-      const response = await axios.get(`${this.apiUrl}/api/analytics/performance-breakdown`, {
-        params: { window: this.config.metricsWindow },
-      });
+      const response = await axios.get(
+        `${this.apiUrl}/api/analytics/performance-breakdown`,
+        {
+          params: { window: this.config.metricsWindow },
+        },
+      );
       return response.data;
     } catch (error) {
-      console.error('Error fetching performance breakdown:', error);
+      console.error("Error fetching performance breakdown:", error);
       return {
         bySport: {},
         byMarket: {},
@@ -164,10 +174,12 @@ class UnifiedAnalyticsService {
 
   public async getRiskAnalysis(): Promise<any> {
     try {
-      const response = await axios.get(`${this.apiUrl}/api/analytics/risk-analysis`);
+      const response = await axios.get(
+        `${this.apiUrl}/api/analytics/risk-analysis`,
+      );
       return response.data;
     } catch (error) {
-      console.error('Error fetching risk analysis:', error);
+      console.error("Error fetching risk analysis:", error);
       return {
         volatility: 0,
         sharpeRatio: 0,

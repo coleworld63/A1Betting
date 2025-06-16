@@ -1,9 +1,9 @@
-import { EventBus } from '../../core/EventBus';
-import { ErrorHandler } from '../../core/ErrorHandler';
-import { PerformanceMonitor } from '../../core/PerformanceMonitor';
-import { UnifiedConfig } from '../../core/UnifiedConfig';
-import { WebSocketManager } from './WebSocketManager';
-import { RiskProfile } from '../../types/core';
+import { EventBus } from "../../core/EventBus";
+import { ErrorHandler } from "../../core/ErrorHandler";
+import { PerformanceMonitor } from "../../core/PerformanceMonitor";
+import { UnifiedConfig } from "../../core/UnifiedConfig";
+import { WebSocketManager } from "./WebSocketManager";
+import { RiskProfile } from "../../types/core";
 
 export interface PredictionResult {
   id: string;
@@ -55,17 +55,17 @@ export class UnifiedPredictionService {
   }
 
   private setupWebSocketHandlers(): void {
-    this.wsService.on('prediction:update', (data: PredictionResult) => {
+    this.wsService.on("prediction:update", (data: PredictionResult) => {
       this.handlePredictionUpdate(data);
     });
 
-    this.wsService.subscribe('prediction:error', (error: any) => {
-      this.errorHandler.handleError(error, 'UnifiedPredictionService', 'high');
+    this.wsService.on("prediction:error", (error: any) => {
+      this.errorHandler.handleError(error, "UnifiedPredictionService", "high");
     });
   }
 
   private setupEventListeners(): void {
-    this.eventBus.on('risk:profile:updated', (profile: RiskProfile) => {
+    this.eventBus.on("risk:profile:updated", (profile: RiskProfile) => {
       this.recalculatePredictions(profile);
     });
   }
@@ -73,17 +73,22 @@ export class UnifiedPredictionService {
   private handlePredictionUpdate(prediction: PredictionResult): void {
     try {
       this.activePredictions.set(prediction.id, prediction);
-      this.predictionSubscribers.forEach(callback => callback(prediction));
-      this.performanceMonitor.trackMetric('prediction:update', {
+      this.predictionSubscribers.forEach((callback) => callback(prediction));
+      this.performanceMonitor.trackMetric("prediction:update", {
         predictionId: prediction.id,
         confidence: prediction.confidence,
         riskScore: prediction.riskScore,
       });
     } catch (error) {
-      this.errorHandler.handleError(error, 'UnifiedPredictionService', 'medium', {
-        action: 'handlePredictionUpdate',
-        predictionId: prediction.id,
-      });
+      this.errorHandler.handleError(
+        error,
+        "UnifiedPredictionService",
+        "medium",
+        {
+          action: "handlePredictionUpdate",
+          predictionId: prediction.id,
+        },
+      );
     }
   }
 
@@ -91,12 +96,15 @@ export class UnifiedPredictionService {
     try {
       const predictions = Array.from(this.activePredictions.values());
       for (const prediction of predictions) {
-        const updatedPrediction = await this.recalculatePrediction(prediction, profile);
+        const updatedPrediction = await this.recalculatePrediction(
+          prediction,
+          profile,
+        );
         this.handlePredictionUpdate(updatedPrediction);
       }
     } catch (error) {
-      this.errorHandler.handleError(error, 'UnifiedPredictionService', 'high', {
-        action: 'recalculatePredictions',
+      this.errorHandler.handleError(error, "UnifiedPredictionService", "high", {
+        action: "recalculatePredictions",
         profileId: profile.id,
       });
     }
@@ -104,7 +112,7 @@ export class UnifiedPredictionService {
 
   private async recalculatePrediction(
     prediction: PredictionResult,
-    profile: RiskProfile
+    profile: RiskProfile,
   ): Promise<PredictionResult> {
     const startTime = performance.now();
     try {
@@ -115,41 +123,66 @@ export class UnifiedPredictionService {
         confidence: this.adjustConfidence(prediction, profile),
       };
 
-      this.performanceMonitor.trackMetric('prediction:recalculation', {
+      this.performanceMonitor.trackMetric("prediction:recalculation", {
         predictionId: prediction.id,
         duration: performance.now() - startTime,
       });
 
       return updatedPrediction;
     } catch (error) {
-      this.errorHandler.handleError(error, 'UnifiedPredictionService', 'medium', {
-        action: 'recalculatePrediction',
-        predictionId: prediction.id,
-      });
+      this.errorHandler.handleError(
+        error,
+        "UnifiedPredictionService",
+        "medium",
+        {
+          action: "recalculatePrediction",
+          predictionId: prediction.id,
+        },
+      );
       return prediction;
     }
   }
 
-  private calculateRiskScore(prediction: PredictionResult, profile: RiskProfile): number {
+  private calculateRiskScore(
+    prediction: PredictionResult,
+    profile: RiskProfile,
+  ): number {
     // Implement risk score calculation based on prediction and profile
-    const confidence = typeof prediction.confidence === 'number' ? prediction.confidence : 0;
+    const confidence =
+      typeof prediction.confidence === "number" ? prediction.confidence : 0;
     const riskToleranceLevel =
-      typeof profile.riskToleranceLevel === 'number' ? profile.riskToleranceLevel : 0;
-    const maxRiskScore = typeof profile.maxRiskScore === 'number' ? profile.maxRiskScore : 1;
+      typeof profile.riskToleranceLevel === "number"
+        ? profile.riskToleranceLevel
+        : 0;
+    const maxRiskScore =
+      typeof profile.maxRiskScore === "number" ? profile.maxRiskScore : 1;
     return Math.min(confidence * riskToleranceLevel, maxRiskScore);
   }
 
-  private adjustConfidence(prediction: PredictionResult, profile: RiskProfile): number {
+  private adjustConfidence(
+    prediction: PredictionResult,
+    profile: RiskProfile,
+  ): number {
     // Implement confidence adjustment based on risk profile
-    const confidence = typeof prediction.confidence === 'number' ? prediction.confidence : 0;
+    const confidence =
+      typeof prediction.confidence === "number" ? prediction.confidence : 0;
     const riskToleranceLevel =
-      typeof profile.riskToleranceLevel === 'number' ? profile.riskToleranceLevel : 0;
+      typeof profile.riskToleranceLevel === "number"
+        ? profile.riskToleranceLevel
+        : 0;
     const minConfidenceThreshold =
-      typeof profile.minConfidenceThreshold === 'number' ? profile.minConfidenceThreshold : 0;
-    return Math.max(confidence * (1 - riskToleranceLevel * 0.2), minConfidenceThreshold);
+      typeof profile.minConfidenceThreshold === "number"
+        ? profile.minConfidenceThreshold
+        : 0;
+    return Math.max(
+      confidence * (1 - riskToleranceLevel * 0.2),
+      minConfidenceThreshold,
+    );
   }
 
-  public subscribeToPredictions(callback: (prediction: PredictionResult) => void): () => void {
+  public subscribeToPredictions(
+    callback: (prediction: PredictionResult) => void,
+  ): () => void {
     this.predictionSubscribers.add(callback);
     return () => this.predictionSubscribers.delete(callback);
   }

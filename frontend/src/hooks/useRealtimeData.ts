@@ -1,6 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-
-
+import { useState, useEffect, useCallback, useRef } from "react";
 
 interface WebSocketMessage<T = unknown> {
   type: string;
@@ -41,13 +39,13 @@ export function useRealtimeData<T>({
   reconnectAttempts = 5,
   reconnectDelay = 1000,
   heartbeatInterval = 30000,
-  subscriptions = []
+  subscriptions = [],
 }: UseRealtimeDataOptions<T>): UseRealtimeDataResult<T> {
   const [data, setData] = useState<T | null>(initialData);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [activeSubscriptions, setActiveSubscriptions] = useState<Set<string>>(
-    new Set(subscriptions)
+    new Set(subscriptions),
   );
 
   const wsRef = useRef<WebSocket | null>(null);
@@ -55,6 +53,21 @@ export function useRealtimeData<T>({
   const heartbeatTimeoutRef = useRef<number>();
 
   const connect = useCallback(() => {
+    // Safety checks to prevent invalid WebSocket connections
+    if (
+      !url ||
+      url === "" ||
+      url === "wss://api.betproai.com/ws" ||
+      url.includes("api.betproai.com") ||
+      url.includes("localhost:8000") ||
+      url.includes("localhost:3001") ||
+      import.meta.env.VITE_ENABLE_WEBSOCKET === "false"
+    ) {
+      console.log("WebSocket connection disabled for realtime data:", url);
+      setError("WebSocket connections are currently disabled");
+      return;
+    }
+
     try {
       const ws = new WebSocket(url);
       wsRef.current = ws;
@@ -66,14 +79,14 @@ export function useRealtimeData<T>({
         onConnected?.();
 
         // Subscribe to all active channels
-        activeSubscriptions.forEach(channel => {
-          ws.send(JSON.stringify({ type: 'subscribe', channel }));
+        activeSubscriptions.forEach((channel) => {
+          ws.send(JSON.stringify({ type: "subscribe", channel }));
         });
 
         // Start heartbeat
         if (heartbeatInterval > 0) {
           heartbeatTimeoutRef.current = window.setInterval(() => {
-            ws.send(JSON.stringify({ type: 'ping' }));
+            ws.send(JSON.stringify({ type: "ping" }));
           }, heartbeatInterval);
         }
       };
@@ -81,20 +94,20 @@ export function useRealtimeData<T>({
       ws.onmessage = (event) => {
         try {
           const message: WebSocketMessage<T> = JSON.parse(event.data);
-          
-          if (message.type === 'pong') {
+
+          if (message.type === "pong") {
             return; // Ignore heartbeat responses
           }
 
           setData(message.data);
           onMessage?.(message);
         } catch (error) {
-          console.error('Failed to parse WebSocket message:', error);
+          console.error("Failed to parse WebSocket message:", error);
         }
       };
 
       ws.onerror = (event) => {
-        const wsError = new Error('WebSocket error');
+        const wsError = new Error("WebSocket error");
         setError(wsError);
         onError?.(wsError);
       };
@@ -129,40 +142,46 @@ export function useRealtimeData<T>({
     reconnectAttempts,
     reconnectDelay,
     heartbeatInterval,
-    activeSubscriptions
+    activeSubscriptions,
   ]);
 
   const send = useCallback((message: any) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-      throw new Error('WebSocket is not connected');
+      throw new Error("WebSocket is not connected");
     }
 
     wsRef.current.send(JSON.stringify(message));
   }, []);
 
-  const subscribe = useCallback((channel: string) => {
-    setActiveSubscriptions(prev => {
-      const next = new Set(prev);
-      next.add(channel);
-      return next;
-    });
+  const subscribe = useCallback(
+    (channel: string) => {
+      setActiveSubscriptions((prev) => {
+        const next = new Set(prev);
+        next.add(channel);
+        return next;
+      });
 
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      send({ type: 'subscribe', channel });
-    }
-  }, [send]);
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        send({ type: "subscribe", channel });
+      }
+    },
+    [send],
+  );
 
-  const unsubscribe = useCallback((channel: string) => {
-    setActiveSubscriptions(prev => {
-      const next = new Set(prev);
-      next.delete(channel);
-      return next;
-    });
+  const unsubscribe = useCallback(
+    (channel: string) => {
+      setActiveSubscriptions((prev) => {
+        const next = new Set(prev);
+        next.delete(channel);
+        return next;
+      });
 
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      send({ type: 'unsubscribe', channel });
-    }
-  }, [send]);
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        send({ type: "unsubscribe", channel });
+      }
+    },
+    [send],
+  );
 
   const reconnect = useCallback(() => {
     if (wsRef.current) {
@@ -192,7 +211,7 @@ export function useRealtimeData<T>({
     send,
     subscribe,
     unsubscribe,
-    reconnect
+    reconnect,
   };
 }
 
@@ -214,7 +233,7 @@ function LiveOddsTracker() {
   } = useRealtimeData<OddsUpdate>({
     url: 'wss://api.betproai.com/odds',
     onMessage: (message) => {
-      
+
     },
     onError: (error) => {
       console.error('WebSocket error:', error);
@@ -247,4 +266,4 @@ function LiveOddsTracker() {
     </div>
   );
 }
-*/ 
+*/

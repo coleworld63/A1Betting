@@ -1,22 +1,22 @@
 // Environment Detection
 const getBaseUrl = () => {
   // Check if we're in a browser environment
-  if (typeof window !== 'undefined') {
+  if (typeof window !== "undefined") {
     const protocol = window.location.protocol;
     const hostname = window.location.hostname;
     const port = window.location.port;
 
     // If we're in development (localhost)
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
       return `${protocol}//${hostname}:8000`;
     }
 
     // If we're in production or using a custom domain
-    return `${protocol}//${hostname}${port ? `:${port}` : ''}`;
+    return `${protocol}//${hostname}${port ? `:${port}` : ""}`;
   }
 
   // Default fallback for SSR or non-browser environments
-  return process.env.API_BASE_URL || 'http://localhost:8000';
+  return import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 };
 
 // API Configuration
@@ -34,7 +34,7 @@ export const WS_CONFIG = {
   RECONNECT_INTERVAL: 5000,
   MAX_RECONNECT_ATTEMPTS: 5,
   getWebSocketUrl: () => {
-    const baseUrl = API_BASE_URL.replace(/^http/, 'ws');
+    const baseUrl = API_BASE_URL.replace(/^http/, "ws");
     return `${baseUrl}/ws`;
   },
 };

@@ -1,11 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import { UnifiedBettingSystem } from '../unified/UnifiedBettingSystem';
-import { UnifiedConfigManager } from '../unified/UnifiedConfig';
-import { UnifiedDataEngine } from '../unified/UnifiedDataEngine';
-import { UnifiedMonitor } from '../unified/UnifiedMonitor';
-import { UnifiedPredictionEngine } from '../unified/UnifiedPredictionEngine';
-import { UnifiedStateManager } from '../unified/UnifiedState';
-import { UnifiedStrategyEngine } from '../unified/UnifiedStrategyEngine';
+import React, { useEffect, useState } from "react";
 
 interface AppInitializerProps {
   children: React.ReactNode;
@@ -18,31 +11,20 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        const monitor = UnifiedMonitor.getInstance();
-        const configManager = UnifiedConfigManager.getInstance();
-        const stateManager = UnifiedStateManager.getInstance(); const dataEngine = UnifiedDataEngine.getInstance();
-        UnifiedPredictionEngine.getInstance();
-        const strategyEngine = UnifiedStrategyEngine.getInstance();
-        const bettingSystem = UnifiedBettingSystem.getInstance();
+        console.log("AppInitializer: Starting app initialization...");
 
-        // Initialize in the correct order
-        await configManager.loadConfig();
-        await stateManager.initialize();
-        await dataEngine.connect();
-        await strategyEngine.initialize();
-        await bettingSystem.initialize();
+        // Instant initialization to access main app
+        // await new Promise(resolve => setTimeout(resolve, 10));
 
-        monitor.recordMetric('system', {
-          initialization: 'success',
-          timestamp: Date.now(),
-        });
-
+        console.log("AppInitializer: App initialization complete");
         setIsInitialized(true);
       } catch (err) {
-        const error = err instanceof Error ? err : new Error('Unknown initialization error');
+        const error =
+          err instanceof Error
+            ? err
+            : new Error("Unknown initialization error");
+        console.error("AppInitializer error:", error);
         setError(error);
-        const monitor = UnifiedMonitor.getInstance();
-        monitor.logError('initialization', error);
       }
     };
 
@@ -55,7 +37,9 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
           <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
             <div className="text-center">
-              <h2 className="text-lg font-medium text-red-900">Initialization Error</h2>
+              <h2 className="text-lg font-medium text-red-900">
+                Initialization Error
+              </h2>
               <p className="mt-2 text-sm text-red-600">{error.message}</p>
               <button
                 className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
@@ -76,9 +60,11 @@ export const AppInitializer: React.FC<AppInitializerProps> = ({ children }) => {
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
           <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
             <div className="text-center">
-              <h2 className="text-lg font-medium text-gray-900">Initializing System</h2>
+              <h2 className="text-lg font-medium text-gray-900">
+                Initializing A1 Betting Platform
+              </h2>
               <p className="mt-2 text-sm text-gray-500">
-                Please wait while we set up the application...
+                Setting up your advanced betting analytics system...
               </p>
               <div className="mt-4">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>

@@ -1,4 +1,4 @@
-import { apiService } from './api';
+import { apiService } from "./api";
 
 interface DailyFantasyConfig {
   baseUrl: string;
@@ -25,7 +25,7 @@ interface Player {
   salary: number;
   projectedPoints: number;
   actualPoints?: number;
-  status: 'active' | 'questionable' | 'out';
+  status: "active" | "questionable" | "out";
   stats: {
     [key: string]: number;
   };
@@ -47,8 +47,12 @@ class DailyFantasyService {
 
   constructor() {
     this.config = {
-      baseUrl: process.env.REACT_APP_DAILY_FANTASY_API_URL || 'https://api.dailyfantasy.com/v1',
-      apiKey: process.env.REACT_APP_DAILY_FANTASY_API_KEY || 'f3ac5a9c-cf01-4dc8-8edb-c02bf6c31a4d',
+      baseUrl:
+        import.meta.env.VITE_DAILY_FANTASY_API_URL ||
+        "https://api.dailyfantasy.com/v1",
+      apiKey:
+        import.meta.env.VITE_DAILY_FANTASY_API_KEY ||
+        "f3ac5a9c-cf01-4dc8-8edb-c02bf6c31a4d",
     };
   }
 
@@ -59,15 +63,15 @@ class DailyFantasyService {
     endTime?: string;
   }): Promise<Contest[]> {
     try {
-      const response = await apiService.get('/daily-fantasy/contests', {
+      const response = await apiService.get("/daily-fantasy/contests", {
         params: options,
         headers: {
-          'X-API-Key': this.config.apiKey,
+          "X-API-Key": this.config.apiKey,
         },
       });
       return response.data;
     } catch (error) {
-      console.error('Failed to get contests:', error);
+      console.error("Failed to get contests:", error);
       throw error;
     }
   }
@@ -79,15 +83,15 @@ class DailyFantasyService {
     team?: string;
   }): Promise<Player[]> {
     try {
-      const response = await apiService.get('/daily-fantasy/players', {
+      const response = await apiService.get("/daily-fantasy/players", {
         params: options,
         headers: {
-          'X-API-Key': this.config.apiKey,
+          "X-API-Key": this.config.apiKey,
         },
       });
       return response.data;
     } catch (error) {
-      console.error('Failed to get players:', error);
+      console.error("Failed to get players:", error);
       throw error;
     }
   }
@@ -97,18 +101,21 @@ class DailyFantasyService {
     options?: {
       startTime?: string;
       endTime?: string;
-    }
-  ): Promise<Player['stats']> {
+    },
+  ): Promise<Player["stats"]> {
     try {
-      const response = await apiService.get(`/daily-fantasy/players/${playerId}/stats`, {
-        params: options,
-        headers: {
-          'X-API-Key': this.config.apiKey,
+      const response = await apiService.get(
+        `/daily-fantasy/players/${playerId}/stats`,
+        {
+          params: options,
+          headers: {
+            "X-API-Key": this.config.apiKey,
+          },
         },
-      });
+      );
       return response.data;
     } catch (error) {
-      console.error('Failed to get player stats:', error);
+      console.error("Failed to get player stats:", error);
       throw error;
     }
   }
@@ -119,15 +126,15 @@ class DailyFantasyService {
     endTime?: string;
   }): Promise<Lineup[]> {
     try {
-      const response = await apiService.get('/daily-fantasy/lineups', {
+      const response = await apiService.get("/daily-fantasy/lineups", {
         params: options,
         headers: {
-          'X-API-Key': this.config.apiKey,
+          "X-API-Key": this.config.apiKey,
         },
       });
       return response.data;
     } catch (error) {
-      console.error('Failed to get lineups:', error);
+      console.error("Failed to get lineups:", error);
       throw error;
     }
   }
@@ -135,20 +142,20 @@ class DailyFantasyService {
   async createLineup(contestId: string, players: Player[]): Promise<Lineup> {
     try {
       const response = await apiService.post(
-        '/daily-fantasy/lineups',
+        "/daily-fantasy/lineups",
         {
           contestId,
           players,
         },
         {
           headers: {
-            'X-API-Key': this.config.apiKey,
+            "X-API-Key": this.config.apiKey,
           },
-        }
+        },
       );
       return response.data;
     } catch (error) {
-      console.error('Failed to create lineup:', error);
+      console.error("Failed to create lineup:", error);
       throw error;
     }
   }
@@ -161,14 +168,17 @@ class DailyFantasyService {
     }[];
   }> {
     try {
-      const response = await apiService.get(`/daily-fantasy/contests/${contestId}/results`, {
-        headers: {
-          'X-API-Key': this.config.apiKey,
+      const response = await apiService.get(
+        `/daily-fantasy/contests/${contestId}/results`,
+        {
+          headers: {
+            "X-API-Key": this.config.apiKey,
+          },
         },
-      });
+      );
       return response.data;
     } catch (error) {
-      console.error('Failed to get contest results:', error);
+      console.error("Failed to get contest results:", error);
       throw error;
     }
   }
@@ -181,7 +191,7 @@ class DailyFantasyService {
       minProjectedPoints?: number;
       maxPlayersPerTeam?: number;
       requiredPositions?: { [key: string]: number };
-    }
+    },
   ): Promise<Lineup> {
     try {
       const response = await apiService.post(
@@ -191,13 +201,13 @@ class DailyFantasyService {
         },
         {
           headers: {
-            'X-API-Key': this.config.apiKey,
+            "X-API-Key": this.config.apiKey,
           },
-        }
+        },
       );
       return response.data;
     } catch (error) {
-      console.error('Failed to get optimal lineup:', error);
+      console.error("Failed to get optimal lineup:", error);
       throw error;
     }
   }

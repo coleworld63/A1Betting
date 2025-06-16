@@ -1,18 +1,18 @@
 import {
   AdvancedAnalysisEngine,
   AnalysisResult as AdvancedAnalysisResult,
-} from './AdvancedAnalysisEngine';
-import { DataIntegrationHub, IntegratedData } from './DataIntegrationHub';
-import { EventBus } from './EventBus';
-import { FeatureManager } from './FeatureFlags';
+} from "./AdvancedAnalysisEngine";
+import { DataIntegrationHub, IntegratedData } from "./DataIntegrationHub";
+import { EventBus } from "./EventBus";
+import { FeatureFlags } from "./FeatureFlags";
 import {
   PerformanceMetrics,
   StrategyRecommendation,
   RiskTolerance,
   RiskToleranceEnum,
-} from '../types/core';
-import { PerformanceMonitor } from './PerformanceMonitor';
-import { PredictionEngine } from './PredictionEngine';
+} from "../types/core";
+import { PerformanceMonitor } from "./PerformanceMonitor";
+import { PredictionEngine } from "./PredictionEngine";
 
 // ... existing code ...
 // Remove or comment out all imports and usages of missing modules (AnalysisEngine, SentimentEngine). If needed, replace with stubs or fallback logic to ensure the file compiles and runs.
@@ -73,11 +73,11 @@ interface StrategyState {
 
 interface BettingPosition {
   id: string;
-  type: 'OVER' | 'UNDER';
+  type: "OVER" | "UNDER";
   stake: number;
   odds: number;
   timestamp: number;
-  status: 'pending' | 'active' | 'closed';
+  status: "pending" | "active" | "closed";
 }
 
 interface MarketData {
@@ -105,12 +105,12 @@ interface StrategyEvaluatedPayload {
 
 function toRiskTolerance(level: string): RiskTolerance {
   switch (level) {
-    case 'LOW':
-      return 'low';
-    case 'MEDIUM':
-      return 'medium';
-    case 'HIGH':
-      return 'high';
+    case "LOW":
+      return "low";
+    case "MEDIUM":
+      return "medium";
+    case "HIGH":
+      return "high";
     default:
       return level as RiskTolerance;
   }
@@ -120,7 +120,7 @@ export class StrategyEngine {
   private static instance: StrategyEngine;
   private readonly eventBus: EventBus;
   private readonly performanceMonitor: PerformanceMonitor;
-  private readonly featureManager: FeatureManager;
+  private readonly featureManager: FeatureFlags;
   private readonly analysisEngine: AdvancedAnalysisEngine;
   private readonly dataHub: DataIntegrationHub;
   private readonly config: StrategyConfig;
@@ -133,7 +133,7 @@ export class StrategyEngine {
   private constructor() {
     this.eventBus = EventBus.getInstance();
     this.performanceMonitor = PerformanceMonitor.getInstance();
-    this.featureManager = FeatureManager.getInstance();
+    this.featureManager = FeatureFlags.getInstance();
     this.analysisEngine = AdvancedAnalysisEngine.getInstance();
     this.dataHub = DataIntegrationHub.getInstance();
     this.config = this.getDefaultConfig();
@@ -170,7 +170,7 @@ export class StrategyEngine {
       minValueGap: 0.1,
       sentimentThreshold: 0.6,
       minConfidence: 0.7,
-      maxRiskLevel: 'medium',
+      maxRiskLevel: "medium",
       requiredDataQuality: 0.8,
       marketEfficiencyThreshold: 0.85,
     };
@@ -206,10 +206,14 @@ export class StrategyEngine {
   }
 
   private setupPerformanceTracking(): void {
-    setInterval(() => this.updateStrategyPerformance(), this.PERFORMANCE_UPDATE_INTERVAL);
+    setInterval(
+      () => this.updateStrategyPerformance(),
+      this.PERFORMANCE_UPDATE_INTERVAL,
+    );
 
-    this.eventBus.subscribe('strategy:execution-completed', event => {
-      const { strategyId, result } = event.payload as unknown as StrategyEvaluatedPayload;
+    this.eventBus.subscribe("strategy:execution-completed", (event) => {
+      const { strategyId, result } =
+        event.payload as unknown as StrategyEvaluatedPayload;
       this.updateStrategyResult(strategyId, result);
     });
   }
@@ -218,14 +222,16 @@ export class StrategyEngine {
     name: string,
     strategies: string[],
     weights: number[],
-    conditions: CompositeStrategy['conditions']
+    conditions: CompositeStrategy["conditions"],
   ): string {
     if (strategies.length !== weights.length) {
-      throw new Error('Strategies and weights arrays must have the same length');
+      throw new Error(
+        "Strategies and weights arrays must have the same length",
+      );
     }
 
     if (Math.abs(weights.reduce((a, b) => a + b, 0) - 1) > 0.0001) {
-      throw new Error('Weights must sum to 1');
+      throw new Error("Weights must sum to 1");
     }
 
     const id = `composite-${Date.now()}`;
@@ -240,7 +246,7 @@ export class StrategyEngine {
         successRate: 0,
         averageReturn: 0,
         riskProfile: {
-          level: 'low',
+          level: "low",
           factors: [],
         },
         lastUpdated: Date.now(),
@@ -252,9 +258,9 @@ export class StrategyEngine {
 
   public async analyzeOpportunity(
     playerId: string,
-    metric: string
+    metric: string,
   ): Promise<StrategyRecommendation | null> {
-    const traceId = this.performanceMonitor.startTrace('strategy-analysis');
+    const traceId = this.performanceMonitor.startTrace("strategy-analysis");
 
     try {
       const analysis = await this.analysisEngine.analyzePlayer(playerId);
@@ -267,7 +273,7 @@ export class StrategyEngine {
         playerId,
         metric,
         analysis,
-        data
+        data,
       );
 
       if (!baseRecommendation) {
@@ -278,7 +284,7 @@ export class StrategyEngine {
       const enhancedRecommendation = await this.applyCompositeStrategies(
         baseRecommendation,
         analysis,
-        data
+        data,
       );
 
       this.performanceMonitor.endTrace(traceId);
@@ -292,7 +298,8 @@ export class StrategyEngine {
   private meetsQualityThresholds(analysis: AdvancedAnalysisResult): boolean {
     return (
       analysis.meta_analysis.data_quality >= this.config.requiredDataQuality &&
-      analysis.meta_analysis.market_efficiency >= this.config.marketEfficiencyThreshold
+      analysis.meta_analysis.market_efficiency >=
+        this.config.marketEfficiencyThreshold
     );
   }
 
@@ -300,7 +307,7 @@ export class StrategyEngine {
     playerId: string,
     metric: string,
     analysis: AdvancedAnalysisResult,
-    data: IntegratedData
+    data: IntegratedData,
   ): Promise<StrategyRecommendation | null> {
     const prediction = analysis.predictions[metric];
     if (!prediction || prediction.confidence < this.config.minConfidence) {
@@ -315,7 +322,7 @@ export class StrategyEngine {
       return null;
     }
 
-    const position = valueGap > 0 ? 'over' : 'under';
+    const position = valueGap > 0 ? "over" : "under";
     const riskAssessment = this.assessRisk(marketData, analysis);
 
     if (
@@ -327,9 +334,12 @@ export class StrategyEngine {
 
     return {
       id: `strategy-${Date.now()}`,
-      type: position.toUpperCase() as 'OVER' | 'UNDER',
+      type: position.toUpperCase() as "OVER" | "UNDER",
       confidence: prediction.confidence,
-      expectedValue: this.calculateExpectedValue(valueGap, prediction.confidence),
+      expectedValue: this.calculateExpectedValue(
+        valueGap,
+        prediction.confidence,
+      ),
       riskAssessment,
       analysis: {
         historicalTrends: [], // Placeholder
@@ -340,17 +350,21 @@ export class StrategyEngine {
     };
   }
 
-  private analyzeMarketData(playerId: string, metric: string, data: IntegratedData): MarketData {
+  private analyzeMarketData(
+    playerId: string,
+    metric: string,
+    data: IntegratedData,
+  ): MarketData {
     const relevantMarkets = this.findRelevantMarkets(playerId, metric, data);
     let currentLine = 0;
-    let movement = 'stable';
+    let movement = "stable";
     let valueGap = 0;
     if (relevantMarkets && Object.keys(relevantMarkets).length > 0) {
       currentLine = this.calculateWeightedLine(relevantMarkets);
       movement = this.analyzeMarketMovement(relevantMarkets, data);
       valueGap = this.calculateMarketValueGap(
         currentLine,
-        data.projections[playerId]?.stats[metric]
+        data.projections[playerId]?.stats[metric],
       );
     }
     return {
@@ -369,7 +383,7 @@ export class StrategyEngine {
   private findRelevantMarkets(
     playerId: string,
     metric: string,
-    data: IntegratedData
+    data: IntegratedData,
   ): Record<string, number> | null {
     const markets: Record<string, number> = {};
 
@@ -384,12 +398,18 @@ export class StrategyEngine {
     return Object.keys(markets).length > 0 ? markets : null;
   }
 
-  private isMarketRelevant(market: string, playerId: string, metric: string): boolean {
+  private isMarketRelevant(
+    market: string,
+    playerId: string,
+    metric: string,
+  ): boolean {
     const marketLower = market.toLowerCase();
     const metricLower = metric.toLowerCase();
     const playerLower = playerId.toLowerCase();
 
-    return marketLower.includes(playerLower) && marketLower.includes(metricLower);
+    return (
+      marketLower.includes(playerLower) && marketLower.includes(metricLower)
+    );
   }
 
   private calculateWeightedLine(markets: Record<string, number>): number {
@@ -400,23 +420,29 @@ export class StrategyEngine {
     return prices.reduce((a, b) => a + b, 0) / prices.length;
   }
 
-  private analyzeMarketMovement(markets: Record<string, number>, data: IntegratedData): string {
-    const movements = Object.keys(markets).map(market => {
+  private analyzeMarketMovement(
+    markets: Record<string, number>,
+    data: IntegratedData,
+  ): string {
+    const movements = Object.keys(markets).map((market) => {
       const eventId = this.findEventIdForMarket(market, data);
-      if (!eventId) return 'stable';
+      if (!eventId) return "stable";
 
       const odds = data.odds[eventId];
-      return odds?.movement.direction ?? 'stable';
+      return odds?.movement.direction ?? "stable";
     });
 
-    const upCount = movements.filter(m => m === 'up').length;
-    const downCount = movements.filter(m => m === 'down').length;
+    const upCount = movements.filter((m) => m === "up").length;
+    const downCount = movements.filter((m) => m === "down").length;
 
-    if (Math.abs(upCount - downCount) < 2) return 'stable';
-    return upCount > downCount ? 'increasing' : 'decreasing';
+    if (Math.abs(upCount - downCount) < 2) return "stable";
+    return upCount > downCount ? "increasing" : "decreasing";
   }
 
-  private findEventIdForMarket(market: string, data: IntegratedData): string | null {
+  private findEventIdForMarket(
+    market: string,
+    data: IntegratedData,
+  ): string | null {
     for (const [eventId, odds] of Object.entries(data.odds)) {
       if (market in odds.markets) {
         return eventId;
@@ -425,7 +451,10 @@ export class StrategyEngine {
     return null;
   }
 
-  private calculateMarketValueGap(currentLine: number, projectedValue?: number): number {
+  private calculateMarketValueGap(
+    currentLine: number,
+    projectedValue?: number,
+  ): number {
     if (!projectedValue) return 0;
     return projectedValue - currentLine;
   }
@@ -435,7 +464,7 @@ export class StrategyEngine {
     if (!sentiment) {
       return `${playerId}:unknown:0:neutral:[]`;
     }
-    return `${playerId}:${sentiment.sentiment.score}:${this.determineSentimentTrend(sentiment)}:${sentiment.keywords.join(',')}`;
+    return `${playerId}:${sentiment.sentiment.score}:${this.determineSentimentTrend(sentiment)}:${sentiment.keywords.join(",")}`;
   }
 
   private calculateValueGap(marketData: MarketData): number {
@@ -444,8 +473,8 @@ export class StrategyEngine {
 
   private assessRisk(
     marketData: MarketData,
-    analysis: AdvancedAnalysisResult
-  ): StrategyRecommendation['riskAssessment'] {
+    analysis: AdvancedAnalysisResult,
+  ): StrategyRecommendation["riskAssessment"] {
     const riskLevel = this.calculateRiskLevel(marketData, analysis);
     const riskFactors = this.identifyRiskFactors(marketData, analysis);
 
@@ -457,38 +486,42 @@ export class StrategyEngine {
 
   private calculateRiskLevel(
     marketData: MarketData,
-    analysis: AdvancedAnalysisResult
+    analysis: AdvancedAnalysisResult,
   ): RiskTolerance {
     const volatility = marketData.volatility;
     const liquidity = marketData.liquidity;
     const marketDepth = marketData.marketDepth;
 
-    const riskScore = volatility * 0.4 + (1 - liquidity) * 0.3 + (1 - marketDepth) * 0.3;
+    const riskScore =
+      volatility * 0.4 + (1 - liquidity) * 0.3 + (1 - marketDepth) * 0.3;
 
-    if (riskScore < 0.3) return 'low';
-    if (riskScore < 0.7) return 'medium';
-    return 'high';
+    if (riskScore < 0.3) return "low";
+    if (riskScore < 0.7) return "medium";
+    return "high";
   }
 
-  private identifyRiskFactors(marketData: MarketData, analysis: AdvancedAnalysisResult): string[] {
+  private identifyRiskFactors(
+    marketData: MarketData,
+    analysis: AdvancedAnalysisResult,
+  ): string[] {
     const factors: string[] = [];
 
     if (marketData.volatility > this.config.volatilityThreshold) {
-      factors.push('High market volatility');
+      factors.push("High market volatility");
     }
     if (marketData.liquidity < this.config.liquidityThreshold) {
-      factors.push('Low market liquidity');
+      factors.push("Low market liquidity");
     }
     if (marketData.marketDepth < this.config.depthThreshold) {
-      factors.push('Insufficient market depth');
+      factors.push("Insufficient market depth");
     }
     if (marketData.momentum < this.config.momentumThreshold) {
-      factors.push('Weak market momentum');
+      factors.push("Weak market momentum");
     }
 
     // Add risks from analysis
     Object.entries(analysis.risks).forEach(([type, risk]) => {
-      if (toRiskTolerance(risk.level) !== 'low') {
+      if (toRiskTolerance(risk.level) !== "low") {
         factors.push(...risk.factors);
       }
     });
@@ -500,25 +533,28 @@ export class StrategyEngine {
     return Math.abs(valueGap) * confidence * (1 - this.config.marginOfError);
   }
 
-  private determineSentimentTrend(sentiment: IntegratedData['sentiment'][string]): string {
+  private determineSentimentTrend(
+    sentiment: IntegratedData["sentiment"][string],
+  ): string {
     const score = sentiment.sentiment.score;
     const volume = sentiment.sentiment.volume;
 
-    if (volume < 100) return 'insufficient data';
+    if (volume < 100) return "insufficient data";
 
-    if (Math.abs(score) < 0.2) return 'neutral';
-    if (Math.abs(score) < 0.5) return score > 0 ? 'slightly positive' : 'slightly negative';
-    if (Math.abs(score) < 0.8) return score > 0 ? 'positive' : 'negative';
-    return score > 0 ? 'strongly positive' : 'strongly negative';
+    if (Math.abs(score) < 0.2) return "neutral";
+    if (Math.abs(score) < 0.5)
+      return score > 0 ? "slightly positive" : "slightly negative";
+    if (Math.abs(score) < 0.8) return score > 0 ? "positive" : "negative";
+    return score > 0 ? "strongly positive" : "strongly negative";
   }
 
   private getRiskLevel(level: RiskTolerance): number {
     switch (level) {
-      case 'low':
+      case "low":
         return 1;
-      case 'medium':
+      case "medium":
         return 2;
-      case 'high':
+      case "high":
         return 3;
     }
   }
@@ -526,7 +562,7 @@ export class StrategyEngine {
   private async applyCompositeStrategies(
     baseRecommendation: StrategyRecommendation,
     analysis: AdvancedAnalysisResult,
-    data: IntegratedData
+    data: IntegratedData,
   ): Promise<StrategyRecommendation> {
     const finalRecommendation = { ...baseRecommendation };
     const totalConfidence = 0;
@@ -540,23 +576,25 @@ export class StrategyEngine {
               strategyId,
               baseRecommendation,
               analysis,
-              data
+              data,
             );
             return {
               result,
               weight: composite.weights[index],
             };
-          })
+          }),
         );
 
         // Combine strategy results
         strategyResults.forEach(({ result, weight }) => {
           if (result) {
             finalRecommendation.confidence =
-              (finalRecommendation.confidence * totalWeight + result.confidence * weight) /
+              (finalRecommendation.confidence * totalWeight +
+                result.confidence * weight) /
               (totalWeight + weight);
             finalRecommendation.expectedValue =
-              (finalRecommendation.expectedValue * totalWeight + result.expectedValue * weight) /
+              (finalRecommendation.expectedValue * totalWeight +
+                result.expectedValue * weight) /
               (totalWeight + weight);
             totalWeight += weight;
           }
@@ -570,17 +608,22 @@ export class StrategyEngine {
   private shouldApplyStrategy(
     strategy: CompositeStrategy,
     analysis: AdvancedAnalysisResult,
-    data: IntegratedData
+    data: IntegratedData,
   ): boolean {
     // Check confidence threshold
-    if (analysis.meta_analysis.prediction_stability < strategy.conditions.minConfidence) {
+    if (
+      analysis.meta_analysis.prediction_stability <
+      strategy.conditions.minConfidence
+    ) {
       return false;
     }
 
     // Check risk level
-    const maxRiskLevel = this.getRiskLevel(toRiskTolerance(strategy.conditions.maxRisk));
+    const maxRiskLevel = this.getRiskLevel(
+      toRiskTolerance(strategy.conditions.maxRisk),
+    );
     const currentRisk = Object.values(analysis.risks).some(
-      risk => this.getRiskLevel(toRiskTolerance(risk.level)) > maxRiskLevel
+      (risk) => this.getRiskLevel(toRiskTolerance(risk.level)) > maxRiskLevel,
     );
     if (currentRisk) {
       return false;
@@ -599,7 +642,7 @@ export class StrategyEngine {
     strategyId: string,
     baseRecommendation: StrategyRecommendation,
     analysis: AdvancedAnalysisResult,
-    data: IntegratedData
+    data: IntegratedData,
   ): Promise<StrategyRecommendation | null> {
     // Implementation for individual strategy execution
     return baseRecommendation; // Placeholder
@@ -608,16 +651,19 @@ export class StrategyEngine {
   private determineMarketState(data: IntegratedData): string {
     // Analyze market conditions to determine state
     // Example states: 'stable', 'volatile', 'trending', etc.
-    return 'stable'; // Placeholder
+    return "stable"; // Placeholder
   }
 
-  private updateStrategyResult(strategyId: string, result: StrategyRecommendation): void {
+  private updateStrategyResult(
+    strategyId: string,
+    result: StrategyRecommendation,
+  ): void {
     const performance = this.strategyPerformance.get(strategyId) || {
       totalExecutions: 0,
       successRate: 0,
       averageReturn: 0,
       riskProfile: {
-        level: 'low',
+        level: "low",
         factors: [],
       },
       lastUpdated: Date.now(),
@@ -635,20 +681,20 @@ export class StrategyEngine {
 
   private adjustStrategyWeights(): void {
     for (const [id, composite] of this.compositeStrategies) {
-      const performances = composite.strategies.map(strategyId =>
-        this.strategyPerformance.get(strategyId)
+      const performances = composite.strategies.map((strategyId) =>
+        this.strategyPerformance.get(strategyId),
       );
 
-      if (performances.some(p => !p)) continue;
+      if (performances.some((p) => !p)) continue;
 
       // Calculate new weights based on relative performance
       const totalPerformance = performances.reduce(
         (sum, p) => sum + p!.averageReturn * p!.successRate,
-        0
+        0,
       );
 
       const newWeights = performances.map(
-        p => (p!.averageReturn * p!.successRate) / totalPerformance
+        (p) => (p!.averageReturn * p!.successRate) / totalPerformance,
       );
 
       // Update weights
@@ -661,7 +707,10 @@ export class StrategyEngine {
 
   private updateStrategyPerformance(): void {
     for (const [strategyId, performance] of this.strategyPerformance) {
-      if (Date.now() - performance.lastUpdated > this.PERFORMANCE_UPDATE_INTERVAL) {
+      if (
+        Date.now() - performance.lastUpdated >
+        this.PERFORMANCE_UPDATE_INTERVAL
+      ) {
         // Recalculate long-term performance metrics
         this.recalculatePerformanceMetrics(strategyId);
       }
@@ -675,39 +724,49 @@ export class StrategyEngine {
 
   private validateRecommendation(recommendation: StrategyRecommendation): void {
     if (!recommendation.id) {
-      throw new Error('Strategy recommendation must have an ID');
+      throw new Error("Strategy recommendation must have an ID");
     }
     if (!recommendation.type) {
-      throw new Error('Strategy recommendation must have a type');
+      throw new Error("Strategy recommendation must have a type");
     }
     if (
-      typeof recommendation.confidence !== 'number' ||
+      typeof recommendation.confidence !== "number" ||
       recommendation.confidence < 0 ||
       recommendation.confidence > 1
     ) {
-      throw new Error('Invalid confidence value');
+      throw new Error("Invalid confidence value");
     }
-    if (typeof recommendation.expectedValue !== 'number' || recommendation.expectedValue <= 0) {
-      throw new Error('Invalid expected value');
+    if (
+      typeof recommendation.expectedValue !== "number" ||
+      recommendation.expectedValue <= 0
+    ) {
+      throw new Error("Invalid expected value");
     }
-    if (!recommendation.riskAssessment || !recommendation.riskAssessment.level) {
-      throw new Error('Invalid risk assessment');
+    if (
+      !recommendation.riskAssessment ||
+      !recommendation.riskAssessment.level
+    ) {
+      throw new Error("Invalid risk assessment");
     }
   }
 
-  private async generateStrategy(marketData: MarketData): Promise<StrategyRecommendation> {
-    const traceId = this.performanceMonitor.startTrace('strategy-generation');
+  private async generateStrategy(
+    marketData: MarketData,
+  ): Promise<StrategyRecommendation> {
+    const traceId = this.performanceMonitor.startTrace("strategy-generation");
 
     try {
-      const analysis = await this.analysisEngine.analyzePlayer(marketData.playerId);
+      const analysis = await this.analysisEngine.analyzePlayer(
+        marketData.playerId,
+      );
       const valueGap = this.calculateValueGap(marketData);
 
       if (Math.abs(valueGap) < this.config.minValueGap) {
-        throw new Error('Value gap below minimum threshold');
+        throw new Error("Value gap below minimum threshold");
       }
 
       if (!this.meetsQualityThresholds(analysis)) {
-        throw new Error('Analysis quality below required threshold');
+        throw new Error("Analysis quality below required threshold");
       }
 
       const position = this.determinePosition(valueGap);
@@ -717,12 +776,12 @@ export class StrategyEngine {
         this.getRiskLevel(toRiskTolerance(riskAssessment.level)) >
         this.getRiskLevel(toRiskTolerance(this.config.maxRiskLevel))
       ) {
-        throw new Error('Risk level exceeds maximum threshold');
+        throw new Error("Risk level exceeds maximum threshold");
       }
 
       const prediction = analysis.predictions[marketData.metric];
       if (!prediction || prediction.confidence < this.config.minConfidence) {
-        throw new Error('Prediction confidence below minimum threshold');
+        throw new Error("Prediction confidence below minimum threshold");
       }
 
       const historicalTrends = Object.entries(analysis.trends)
@@ -741,13 +800,18 @@ export class StrategyEngine {
 
       const recommendation: StrategyRecommendation = {
         id: `strategy-${Date.now()}`,
-        type: position.toUpperCase() as 'OVER' | 'UNDER',
+        type: position.toUpperCase() as "OVER" | "UNDER",
         confidence: prediction.confidence,
-        expectedValue: this.calculateExpectedValue(valueGap, prediction.confidence),
+        expectedValue: this.calculateExpectedValue(
+          valueGap,
+          prediction.confidence,
+        ),
         riskAssessment,
         analysis: {
           historicalTrends,
-          marketSignals: analysis.opportunities.map(opp => opp.rationale).flat(),
+          marketSignals: analysis.opportunities
+            .map((opp) => opp.rationale)
+            .flat(),
           riskFactors: Object.entries(analysis.risks)
             .map(([type, risk]) => [`${type}: ${risk.level}`, ...risk.factors])
             .flat(),
@@ -773,35 +837,47 @@ export class StrategyEngine {
     const bankroll = this.state.bankroll;
     const odds = 1 + valueGap;
 
-    const kellyStake = bankroll * ((odds * confidence - (1 - confidence)) / odds) * kellyFraction;
+    const kellyStake =
+      bankroll *
+      ((odds * confidence - (1 - confidence)) / odds) *
+      kellyFraction;
 
-    return Math.min(Math.max(kellyStake, this.config.minStake), this.config.maxStake);
+    return Math.min(
+      Math.max(kellyStake, this.config.minStake),
+      this.config.maxStake,
+    );
   }
 
   private determineExecutionTiming(
     marketData: MarketData,
-    sentiment: SentimentAnalysis
-  ): 'immediate' | 'wait' | 'monitor' {
+    sentiment: SentimentAnalysis,
+  ): "immediate" | "wait" | "monitor" {
     if (marketData.volatility > this.config.volatilityThreshold) {
-      return 'monitor';
+      return "monitor";
     }
     if (sentiment.score < this.config.sentimentThreshold) {
-      return 'wait';
+      return "wait";
     }
-    return 'immediate';
+    return "immediate";
   }
 
   private determineExecutionConditions(marketData: MarketData): string[] {
     const conditions: string[] = [];
 
     if (marketData.volatility > this.config.volatilityThreshold) {
-      conditions.push(`Wait for volatility to drop below ${this.config.volatilityThreshold}`);
+      conditions.push(
+        `Wait for volatility to drop below ${this.config.volatilityThreshold}`,
+      );
     }
     if (marketData.liquidity < this.config.liquidityThreshold) {
-      conditions.push(`Wait for liquidity to increase above ${this.config.liquidityThreshold}`);
+      conditions.push(
+        `Wait for liquidity to increase above ${this.config.liquidityThreshold}`,
+      );
     }
     if (marketData.valueGap < this.config.minValueGap) {
-      conditions.push(`Wait for value gap to increase above ${this.config.minValueGap}`);
+      conditions.push(
+        `Wait for value gap to increase above ${this.config.minValueGap}`,
+      );
     }
 
     return conditions;
@@ -832,7 +908,7 @@ export class StrategyEngine {
     return marketData.currentLine * (1 + this.config.takeProfitPercentage);
   }
 
-  private determinePosition(valueGap: number): 'over' | 'under' {
-    return valueGap > 0 ? 'over' : 'under';
+  private determinePosition(valueGap: number): "over" | "under" {
+    return valueGap > 0 ? "over" : "under";
   }
 }

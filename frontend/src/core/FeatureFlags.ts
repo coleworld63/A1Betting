@@ -1,7 +1,7 @@
-import { EventBus } from './EventBus';
-import { PerformanceMonitor } from './PerformanceMonitor';
-import { UnifiedConfigManager } from './UnifiedConfigManager';
-import { UnifiedMonitor } from './UnifiedMonitor';
+import { EventBus } from "./EventBus";
+import { PerformanceMonitor } from "./PerformanceMonitor";
+import { UnifiedConfigManager } from "./UnifiedConfigManager";
+import { UnifiedMonitor } from "./UnifiedMonitor";
 
 export interface Feature {
   id: string;
@@ -18,7 +18,7 @@ export interface Experiment {
   id: string;
   name: string;
   description: string;
-  status: 'active' | 'inactive' | 'completed';
+  status: "active" | "inactive" | "completed";
   variants: Array<{
     id: string;
     name: string;
@@ -67,7 +67,7 @@ export class FeatureFlags {
   }
 
   public async initialize(): Promise<void> {
-    const traceId = this.performanceMonitor.startTrace('feature-flags-init');
+    const traceId = this.performanceMonitor.startTrace("feature-flags-init");
     try {
       const config = await this.configManager.getConfig();
 
@@ -103,14 +103,18 @@ export class FeatureFlags {
     if (!this.areDependenciesSatisfied(feature, context)) return false;
 
     // Check rollout percentage
-    if (!this.isUserInRollout(context.userId, feature.rolloutPercentage)) return false;
+    if (!this.isUserInRollout(context.userId, feature.rolloutPercentage))
+      return false;
 
     return true;
   }
 
-  public getExperimentVariant(experimentId: string, context: UserContext): string | null {
+  public getExperimentVariant(
+    experimentId: string,
+    context: UserContext,
+  ): string | null {
     const experiment = this.experiments.get(experimentId);
-    if (!experiment || experiment.status !== 'active') return null;
+    if (!experiment || experiment.status !== "active") return null;
 
     // Check if user is in experiment audience
     if (!this.isUserInAudience(context, experiment.audience)) return null;
@@ -134,8 +138,13 @@ export class FeatureFlags {
     return null;
   }
 
-  private areDependenciesSatisfied(feature: Feature, context: UserContext): boolean {
-    return feature.dependencies.every(depId => this.isFeatureEnabled(depId, context));
+  private areDependenciesSatisfied(
+    feature: Feature,
+    context: UserContext,
+  ): boolean {
+    return feature.dependencies.every((depId) =>
+      this.isFeatureEnabled(depId, context),
+    );
   }
 
   private isUserInRollout(userId: string, percentage: number): boolean {
@@ -144,9 +153,13 @@ export class FeatureFlags {
     return normalized <= percentage / 100;
   }
 
-  private isUserInAudience(context: UserContext, audience: Experiment['audience']): boolean {
+  private isUserInAudience(
+    context: UserContext,
+    audience: Experiment["audience"],
+  ): boolean {
     // Check percentage rollout
-    if (!this.isUserInRollout(context.userId, audience.percentage)) return false;
+    if (!this.isUserInRollout(context.userId, audience.percentage))
+      return false;
 
     // Check filters if they exist
     if (audience.filters) {
@@ -160,9 +173,12 @@ export class FeatureFlags {
 
   private assignVariant(
     experiment: Experiment,
-    context: UserContext
-  ): Experiment['variants'][0] | null {
-    const totalWeight = experiment.variants.reduce((sum, v) => sum + v.weight, 0);
+    context: UserContext,
+  ): Experiment["variants"][0] | null {
+    const totalWeight = experiment.variants.reduce(
+      (sum, v) => sum + v.weight,
+      0,
+    );
     const hash = this.hashString(`${context.userId}:${experiment.id}`);
     const normalized = (hash / Math.pow(2, 32)) * totalWeight;
 
@@ -205,7 +221,7 @@ export class FeatureFlags {
       ...updates,
     });
 
-    this.eventBus.emit('feature:updated', {
+    this.eventBus.emit("feature:updated", {
       featureId,
       updates,
       timestamp: Date.now(),
@@ -219,7 +235,10 @@ export class FeatureFlags {
     this.experiments.set(experiment.id, experiment);
   }
 
-  public updateExperiment(experimentId: string, updates: Partial<Experiment>): void {
+  public updateExperiment(
+    experimentId: string,
+    updates: Partial<Experiment>,
+  ): void {
     const experiment = this.experiments.get(experimentId);
     if (!experiment) {
       throw new Error(`Experiment ${experimentId} not found`);
@@ -230,7 +249,7 @@ export class FeatureFlags {
       ...updates,
     });
 
-    this.eventBus.emit('experiment:updated', {
+    this.eventBus.emit("experiment:updated", {
       experimentId,
       timestamp: Date.now(),
     });
