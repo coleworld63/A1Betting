@@ -821,26 +821,30 @@ const App: React.FC = () => {
         )}
 
       {/* Enhanced Real-time Status Bar */}
-      <div
-        className="fixed bottom-4 right-4 glass-card p-3 text-xs z-30"
+      <Card
+        variant="glass"
+        className="fixed bottom-4 right-4 z-30 p-3 text-xs border-success-200/50"
         role="status"
         aria-live="polite"
         aria-label="Application status"
       >
-        <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 bg-success-500 rounded-full animate-pulse shadow-successShadow"></div>
-          <span className="text-gray-700 dark:text-gray-300 font-medium">
-            All Advanced Features Active
-          </span>
-          <div className="text-gray-500 dark:text-gray-400">
+        <div className="flex items-center space-x-3">
+          <div className="relative">
+            <div className="w-2 h-2 bg-success-500 rounded-full animate-pulse shadow-successShadow"></div>
+            <div className="absolute inset-0 w-2 h-2 bg-success-400 rounded-full animate-ping opacity-75"></div>
+          </div>
+          <Badge variant="success" size="sm" className="font-medium">
+            All Systems Active
+          </Badge>
+          <span className="text-gray-600 dark:text-gray-400 font-mono">
             {navigationConfig.reduce(
               (total, group) => total + group.items.length,
               0,
             )}{" "}
             Features
-          </div>
+          </span>
         </div>
-      </div>
+      </Card>
 
       {/* Hidden navigation helper for screen readers */}
       <div className="sr-only">
