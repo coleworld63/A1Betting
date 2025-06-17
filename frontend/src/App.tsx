@@ -781,7 +781,7 @@ const App: React.FC = () => {
                         <li>• Adaptive thresholds with homeostasis</li>
                         <li>• Energy-efficient computation</li>
                         <li>• Temporal pattern recognition</li>
-                        <li>• Asynchronous event processing</li>
+                        <li>�� Asynchronous event processing</li>
                       </ul>
                     </div>
                   </div>
