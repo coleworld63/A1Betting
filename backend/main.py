@@ -1,146 +1,529 @@
 """
-Main FastAPI application for UltimateSportsBettingApp backend.
+Enhanced Main FastAPI application for A1Betting backend.
 
-This module provides the main FastAPI application with prediction engine,
-feature engineering, and analytics capabilities.
+This module provides the main FastAPI application with:
+- Prediction engine with ensemble ML models
+- Real-time data pipeline integration
+- Comprehensive health checks and monitoring
+- Database persistence and caching
+- WebSocket support for real-time updates
 """
+
+import asyncio
 import logging
 import os
 import sys
-from typing import Any, Dict
+import time
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends, BackgroundTasks
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict
+from fastapi.openapi.docs import get_swagger_ui_html
+from pydantic import BaseModel, Field
+import uvicorn
 
 # Add current directory to path for local imports
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-# Import local services
+# Import enhanced services
+from config import config_manager, config, HealthStatus
+from database import db_manager, get_db_session
+from data_pipeline import data_pipeline, DataRequest, DataSourceType
+from model_service import model_service, PredictionRequest
+from betting_opportunity_service import betting_opportunity_service
+from monitoring_service import monitoring_service, PerformanceData
+from ws import router as websocket_router
+
+# Import legacy services for compatibility
 from feature_engineering import FeatureEngineering
 from feature_flags import FeatureFlags, UserContext
-from feature_registry import FeatureRegistry
 from prediction_engine import router as prediction_router
-from unified_feature_service import UnifiedFeatureService
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=getattr(logging, config.log_level.upper()),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s' if config.log_format != 'json' 
+           else '{"timestamp": "%(asctime)s", "logger": "%(name)s", "level": "%(levelname)s", "message": "%(message)s"}',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler(config.log_file) if config.log_file else logging.NullHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
-# Initialize FastAPI app
+# Initialize FastAPI app with enhanced configuration
 app = FastAPI(
-    title="Alpha1 AI Sports Betting Backend",
-    description="Advanced AI-powered sports betting analytics platform",
-    version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
+    title="A1Betting Ultra-Enhanced Backend",
+    description="Advanced AI-powered sports betting analytics platform with real-time data, ensemble ML models, and comprehensive monitoring",
+    version="2.0.0",
+    docs_url="/docs" if config.debug else None,
+    redoc_url="/redoc" if config.debug else None,
+    openapi_url="/openapi.json" if config.debug else None
 )
 
-# Initialize services
-logger.info("Initializing backend services...")
-registry = FeatureRegistry()
-feature_engineer = FeatureEngineering()
-unified_service = UnifiedFeatureService()
+# Add middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=config.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# Initialize feature flags
-feature_flags = FeatureFlags.get_instance()
-feature_flags.initialize({
-    'features': [],  # Populate with real features in production
-    'experiments': []  # Populate with real experiments in production
-})
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-# Placeholder for ML model (will be replaced with actual models in Phase 2)
-model = None
-
-
-def features_to_array(features: Dict[str, float]) -> list:
-    """Convert feature dictionary to array for model input."""
-    import numpy as np
-    return np.array([list(features.values())])
-
-
-# Pydantic schemas with improved configuration
-class InputData(BaseModel):
-    """Input data model for feature extraction and prediction."""
+# Request tracking middleware
+@app.middleware("http")
+async def track_requests(request: Request, call_next):
+    start_time = time.time()
     
-    model_config = ConfigDict(
-        protected_namespaces=(),
-        json_schema_extra={
-            "example": {
-                "game_id": 12345,
-                "team_stats": {"score": 100.0, "field_goal_pct": 0.45},
-                "player_stats": {"points": 25.0, "assists": 8.0}
+    try:
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        
+        # Log request metrics
+        logger.info({
+            "event": "request_processed",
+            "method": request.method,
+            "url": str(request.url),
+            "status_code": response.status_code,
+            "process_time": process_time
+        })
+        
+        # Record performance metrics
+        if config.metrics_enabled:
+            performance_data = PerformanceData(
+                timestamp=datetime.utcnow(),
+                metrics={
+                    "request_duration": {
+                        "value": process_time,
+                        "unit": "seconds"
+                    },
+                    "status_code": {
+                        "value": response.status_code,
+                        "unit": "code"
+                    }
+                }
+            )
+            await monitoring_service.record_performance(performance_data)
+        
+        response.headers["X-Process-Time"] = str(process_time)
+        return response
+        
+    except Exception as e:
+        process_time = time.time() - start_time
+        logger.error({
+            "event": "request_error",
+            "method": request.method,
+            "url": str(request.url),
+            "error": str(e),
+            "process_time": process_time
+        })
+        raise
+
+# Enhanced Pydantic models
+class HealthCheckResponse(BaseModel):
+    """Health check response model"""
+    status: str = Field(..., description="Overall system status")
+    timestamp: datetime = Field(..., description="Health check timestamp")
+    version: str = Field(..., description="Application version")
+    services: Dict[str, HealthStatus] = Field(..., description="Individual service statuses")
+    uptime: float = Field(..., description="System uptime in seconds")
+
+class PredictionRequestModel(BaseModel):
+    """Enhanced prediction request model"""
+    event_id: str = Field(..., description="Unique event identifier")
+    sport: str = Field(default="basketball", description="Sport type")
+    features: Dict[str, float] = Field(..., description="Input features for prediction")
+    models: Optional[List[str]] = Field(None, description="Specific models to use")
+    require_explanations: bool = Field(False, description="Include SHAP explanations")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+
+class DataPipelineRequest(BaseModel):
+    """Data pipeline request model"""
+    source: DataSourceType = Field(..., description="Data source type")
+    endpoint: str = Field(..., description="API endpoint")
+    params: Dict[str, Any] = Field(default_factory=dict, description="Query parameters")
+    cache_ttl: int = Field(300, description="Cache TTL in seconds")
+
+# Application startup and shutdown events
+app_start_time = time.time()
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize services on startup"""
+    logger.info("Starting A1Betting backend services...")
+    
+    try:
+        # Initialize database
+        await db_manager.initialize()
+        logger.info("Database initialized")
+        
+        # Initialize data pipeline
+        await data_pipeline.initialize()
+        logger.info("Data pipeline initialized")
+        
+        # Initialize model service
+        await model_service.initialize()
+        logger.info("Model service initialized")
+        
+        # Initialize feature flags
+        feature_flags = FeatureFlags.get_instance()
+        feature_flags.initialize({
+            'features': [
+                {"id": "betting_opportunities", "enabled": True},
+                {"id": "real_time_predictions", "enabled": True},
+                {"id": "advanced_analytics", "enabled": True}
+            ],
+            'experiments': []
+        })
+        logger.info("Feature flags initialized")
+        
+        logger.info("All services initialized successfully")
+        
+    except Exception as e:
+        logger.error(f"Failed to initialize services: {str(e)}")
+        raise
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown"""
+    logger.info("Shutting down A1Betting backend services...")
+    
+    try:
+        await data_pipeline.shutdown()
+        await db_manager.async_engine.dispose() if db_manager.async_engine else None
+        logger.info("Services shut down successfully")
+    except Exception as e:
+        logger.error(f"Error during shutdown: {str(e)}")
+
+# Health check endpoints
+@app.get("/health", response_model=HealthCheckResponse)
+async def health_check():
+    """Comprehensive health check endpoint"""
+    try:
+        services = {}
+        overall_status = "healthy"
+        
+        # Check database
+        db_health = await db_manager.health_check()
+        services["database"] = HealthStatus(
+            service="database",
+            status=db_health["status"],
+            response_time=db_health.get("response_time", 0.0),
+            error=db_health.get("error"),
+            details=db_health.get("connection_pool", {})
+        )
+        
+        # Check data pipeline
+        pipeline_health = await data_pipeline.get_pipeline_health()
+        services["data_pipeline"] = HealthStatus(
+            service="data_pipeline",
+            status=pipeline_health["status"],
+            response_time=0.0,
+            details=pipeline_health["stats"]
+        )
+        
+        # Check model service
+        model_health = await model_service.get_model_health()
+        services["model_service"] = HealthStatus(
+            service="model_service",
+            status=model_health["status"],
+            response_time=0.0,
+            details={
+                "loaded_models": model_health["loaded_models"],
+                "inference_stats": model_health["inference_stats"]
             }
+        )
+        
+        # Determine overall status
+        service_statuses = [s.status for s in services.values()]
+        if "unhealthy" in service_statuses:
+            overall_status = "unhealthy"
+        elif "degraded" in service_statuses:
+            overall_status = "degraded"
+        
+        return HealthCheckResponse(
+            status=overall_status,
+            timestamp=datetime.utcnow(),
+            version="2.0.0",
+            services=services,
+            uptime=time.time() - app_start_time
+        )
+        
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Health check failed")
+
+@app.get("/health/ready")
+async def readiness_check():
+    """Kubernetes readiness probe"""
+    try:
+        # Quick check for essential services
+        db_health = await db_manager.health_check()
+        if db_health["status"] != "healthy":
+            raise HTTPException(status_code=503, detail="Database not ready")
+        
+        return {"status": "ready", "timestamp": datetime.utcnow()}
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Not ready: {str(e)}")
+
+@app.get("/health/live")
+async def liveness_check():
+    """Kubernetes liveness probe"""
+    return {
+        "status": "alive", 
+        "timestamp": datetime.utcnow(),
+        "uptime": time.time() - app_start_time
+    }
+
+# Enhanced prediction endpoints
+@app.post("/api/v2/predict")
+async def predict_enhanced(
+    request: PredictionRequestModel,
+    background_tasks: BackgroundTasks,
+    db: Any = Depends(get_db_session)
+):
+    """Enhanced prediction endpoint with full pipeline integration"""
+    try:
+        # Convert to internal request format
+        prediction_request = PredictionRequest(
+            event_id=request.event_id,
+            features=request.features,
+            model_names=request.models,
+            require_explanations=request.require_explanations,
+            metadata={
+                **request.metadata,
+                "sport": request.sport,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+        
+        # Make prediction
+        prediction = await model_service.predict(prediction_request)
+        
+        # Schedule background tasks
+        background_tasks.add_task(
+            update_model_performance_metrics,
+            prediction.model_predictions
+        )
+        
+        return {
+            "event_id": prediction.event_id,
+            "prediction": {
+                "value": prediction.final_prediction,
+                "confidence": prediction.ensemble_confidence,
+                "processing_time": prediction.processing_time
+            },
+            "models": [
+                {
+                    "name": mp.model_name,
+                    "version": mp.model_version,
+                    "prediction": mp.predicted_value,
+                    "confidence": mp.confidence,
+                    "feature_importance": mp.feature_importance if request.require_explanations else {},
+                    "shap_values": mp.shap_values if request.require_explanations else {}
+                }
+                for mp in prediction.model_predictions
+            ],
+            "feature_engineering": prediction.feature_engineering_stats,
+            "timestamp": prediction.timestamp.isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Prediction failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+
+# Data pipeline endpoints
+@app.post("/api/v2/data/fetch")
+async def fetch_data_endpoint(request: DataPipelineRequest):
+    """Fetch data from external sources"""
+    try:
+        data_request = DataRequest(
+            source=request.source,
+            endpoint=request.endpoint,
+            params=request.params,
+            cache_ttl=request.cache_ttl
+        )
+        
+        response = await data_pipeline.fetch_data(data_request)
+        
+        return {
+            "source": response.source,
+            "status": response.status,
+            "timestamp": response.timestamp.isoformat(),
+            "latency": response.latency,
+            "cache_hit": response.cache_hit,
+            "data": response.data,
+            "error": response.error,
+            "metadata": response.metadata
+        }
+        
+    except Exception as e:
+        logger.error(f"Data fetch failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Data fetch failed: {str(e)}")
+
+@app.get("/api/v2/data/live-games")
+async def get_live_games(sport: str = "basketball"):
+    """Get live games from multiple data sources"""
+    try:
+        responses = await data_pipeline.get_live_games(sport)
+        
+        return {
+            "sport": sport,
+            "sources": len(responses),
+            "data": [
+                {
+                    "source": r.source,
+                    "status": r.status,
+                    "data": r.data,
+                    "latency": r.latency,
+                    "cache_hit": r.cache_hit
+                }
+                for r in responses
+            ],
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Live games fetch failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Betting opportunities endpoints
+@app.get("/api/v2/opportunities")
+async def get_betting_opportunities():
+    """Get current betting opportunities"""
+    try:
+        opportunities = await betting_opportunity_service.get_active_opportunities()
+        
+        return {
+            "count": len(opportunities),
+            "opportunities": [
+                {
+                    "id": opp.opportunity_id,
+                    "type": opp.opportunity_type,
+                    "event_id": opp.event_id,
+                    "expected_value": opp.expected_value,
+                    "confidence": opp.confidence,
+                    "kelly_fraction": opp.kelly_fraction,
+                    "risk_level": opp.risk_level,
+                    "best_odds": opp.best_odds,
+                    "expires_at": opp.expires_at.isoformat() if opp.expires_at else None,
+                    "metadata": opp.metadata
+                }
+                for opp in opportunities
+            ],
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+    except Exception as e:
+        logger.error(f"Opportunities fetch failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v2/opportunities/stats")
+async def get_opportunity_statistics():
+    """Get betting opportunity statistics"""
+    try:
+        stats = await betting_opportunity_service.get_opportunity_statistics()
+        return {
+            "statistics": stats,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Opportunity stats failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Model management endpoints
+@app.get("/api/v2/models")
+async def get_model_status():
+    """Get current model status and performance"""
+    try:
+        health = await model_service.get_model_health()
+        return {
+            "status": health,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Model status failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/v2/models/{model_name}/reload")
+async def reload_model(model_name: str):
+    """Reload a specific model"""
+    try:
+        success = await model_service.reload_model(model_name)
+        if success:
+            return {"status": "success", "model": model_name, "timestamp": datetime.utcnow().isoformat()}
+        else:
+            raise HTTPException(status_code=400, detail=f"Failed to reload model: {model_name}")
+    except Exception as e:
+        logger.error(f"Model reload failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Monitoring endpoints
+@app.get("/api/v2/metrics")
+async def get_metrics():
+    """Get system performance metrics"""
+    try:
+        # Get various metrics
+        db_health = await db_manager.health_check()
+        pipeline_health = await data_pipeline.get_pipeline_health()
+        model_health = await model_service.get_model_health()
+        
+        return {
+            "database": db_health,
+            "data_pipeline": pipeline_health,
+            "model_service": model_health,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Metrics fetch failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Background tasks
+async def update_model_performance_metrics(model_predictions):
+    """Background task to update model performance metrics"""
+    try:
+        # This would typically compare predictions with actual outcomes
+        # For now, just log the predictions
+        logger.info(f"Recording performance for {len(model_predictions)} model predictions")
+    except Exception as e:
+        logger.error(f"Error updating model performance: {str(e)}")
+
+# Include legacy routers for backward compatibility
+app.include_router(prediction_router, prefix="/api/v1", tags=["Legacy Predictions"])
+app.include_router(websocket_router, prefix="/ws", tags=["WebSocket"])
+
+# Custom exception handlers
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Global exception handler"""
+    logger.error({
+        "event": "unhandled_exception",
+        "path": request.url.path,
+        "method": request.method,
+        "error": str(exc)
+    })
+    
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal server error",
+            "timestamp": datetime.utcnow().isoformat(),
+            "path": request.url.path
         }
     )
-    
-    game_id: int
-    team_stats: Dict[str, float]
-    player_stats: Dict[str, float]
 
-
-class FeaturesResponse(BaseModel):
-    """Response model for feature extraction."""
-    
-    model_config = ConfigDict(protected_namespaces=())
-    
-    features: Dict[str, float]
-
-
-class PredictionResponse(BaseModel):
-    """Response model for predictions."""
-    
-    model_config = ConfigDict(protected_namespaces=())
-    
-    prediction: float
-
-@app.post("/features", response_model=FeaturesResponse)
-async def get_features(input_data: InputData):
-    try:
-        raw_dict = input_data.dict()
-        # For demo, just flatten team_stats and player_stats
-        features = {**raw_dict.get('team_stats', {}), **raw_dict.get('player_stats', {})}
-        # Optionally, use unified_service.process_features(raw_dict)
-        return FeaturesResponse(features=features)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/predict", response_model=PredictionResponse)
-async def predict(input_data: InputData):
-    try:
-        raw_dict = input_data.dict()
-        features = {**raw_dict.get('team_stats', {}), **raw_dict.get('player_stats', {})}
-        if model is None:
-            raise RuntimeError("Model not loaded")
-        feature_array = features_to_array(features)
-        prediction_value = model.predict(feature_array).item()
-        return PredictionResponse(prediction=prediction_value)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/feature-flag-enabled")
-async def feature_flag_enabled(request: Request):
-    data = await request.json()
-    feature_id = data.get("feature_id")
-    user_id = data.get("user_id")
-    user_groups = data.get("user_groups", [])
-    attributes = data.get("attributes", {})
-    context = UserContext(user_id, user_groups, attributes)
-    enabled = feature_flags.is_feature_enabled(feature_id, context)
-    return JSONResponse({"enabled": enabled})
-
-# Example endpoint for experiment variant assignment
-@app.post("/experiment-variant")
-async def experiment_variant(request: Request):
-    data = await request.json()
-    experiment_id = data.get("experiment_id")
-    user_id = data.get("user_id")
-    user_groups = data.get("user_groups", [])
-    attributes = data.get("attributes", {})
-    context = UserContext(user_id, user_groups, attributes)
-    variant = feature_flags.get_experiment_variant(experiment_id, context)
-    return JSONResponse({"variant": variant})
-
-app.include_router(prediction_router)
-
-# Placeholder for SHAP/explanation endpoint (to be added next)
+# Main entry point
+if __name__ == "__main__":
+    uvicorn.run(
+        "main:app",
+        host=config.api_host,
+        port=config.api_port,
+        workers=config.api_workers if not config.debug else 1,
+        reload=config.debug,
+        log_level=config.log_level.lower()
+    )
