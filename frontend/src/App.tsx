@@ -749,6 +749,14 @@ const App: React.FC = () => {
             </SuspenseWrapper>
           </RouteWrapper>
         );
+      case "/enhanced-revolutionary":
+        return (
+          <RouteWrapper routeName="Enhanced Mathematical Engine">
+            <SuspenseWrapper loadingMessage="Loading Enhanced Mathematical Revolutionary Engine...">
+              <EnhancedRevolutionaryInterface />
+            </SuspenseWrapper>
+          </RouteWrapper>
+        );
       case "/neuromorphic-interface":
         return (
           <RouteWrapper routeName="Neuromorphic Computing">
