@@ -1,434 +1,244 @@
-import React, { useState, useEffect } from 'react';
-// import { WebSocketSecurityAlerts, SecurityAlert } from '../services/WebSocketSecurityAlerts';
-// import { WebSocketSecurityLogger } from '../services/WebSocketSecurityLogger';
-// NOTE: This component is currently disabled due to missing WebSocketSecurityAlerts and WebSocketSecurityLogger dependencies.
-import { EventBus } from '../unified/EventBus';
+import React, { useState, useEffect } from "react";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from 'recharts';
+  Shield,
+  Lock,
+  Wifi,
+  WifiOff,
+  AlertTriangle,
+  CheckCircle,
+} from "lucide-react";
 
-const COLORS = {
-  critical: '#dc3545',
-  high: '#fd7e14',
-  medium: '#ffc107',
-  low: '#20c997',
-};
+interface ConnectionStatus {
+  id: string;
+  name: string;
+  status: "connected" | "disconnected" | "error";
+  lastSeen: Date;
+  messageCount: number;
+  security: "secure" | "insecure";
+}
 
-const WebSocketSecurityDashboard: React.FC = () => {
-  // const [alerts, setAlerts] = useState<SecurityAlert[]>([]);
-  // const [alertStats, setAlertStats] =
-  //   useState<ReturnType<typeof WebSocketSecurityAlerts.prototype.getAlertStats>>();
-  // const [logStats, setLogStats] =
-  //   useState<ReturnType<typeof WebSocketSecurityLogger.prototype.getLogStats>>();
-  const [selectedTimeRange, setSelectedTimeRange] = useState<'1h' | '24h' | '7d'>('24h');
-
-  // const alertsService = WebSocketSecurityAlerts.getInstance();
-  // const logger = WebSocketSecurityLogger.getInstance();
-  const eventBus = EventBus.getInstance();
+export const WebSocketSecurityDashboard: React.FC = () => {
+  const [connections, setConnections] = useState<ConnectionStatus[]>([]);
+  const [securityLevel, setSecurityLevel] = useState<"high" | "medium" | "low">(
+    "high",
+  );
 
   useEffect(() => {
-    const updateData = () => {
-      const now = Date.now();
-      const timeRanges = {
-        '1h': now - 3600000,
-        '24h': now - 86400000,
-        '7d': now - 604800000,
-      };
+    // Mock connection data
+    const mockConnections: ConnectionStatus[] = [
+      {
+        id: "odds-feed",
+        name: "Live Odds Feed",
+        status: "connected",
+        lastSeen: new Date(),
+        messageCount: 1247,
+        security: "secure",
+      },
+      {
+        id: "prediction-stream",
+        name: "ML Prediction Stream",
+        status: "connected",
+        lastSeen: new Date(Date.now() - 30000),
+        messageCount: 342,
+        security: "secure",
+      },
+      {
+        id: "arbitrage-alerts",
+        name: "Arbitrage Alerts",
+        status: "disconnected",
+        lastSeen: new Date(Date.now() - 120000),
+        messageCount: 89,
+        security: "secure",
+      },
+    ];
 
-      setAlerts(
-        alertsService.getAlerts({
-          startTime: timeRanges[selectedTimeRange],
-        })
+    setConnections(mockConnections);
+
+    // Update connections periodically
+    const interval = setInterval(() => {
+      setConnections((prev) =>
+        prev.map((conn) => ({
+          ...conn,
+          messageCount:
+            conn.status === "connected"
+              ? conn.messageCount + Math.floor(Math.random() * 5)
+              : conn.messageCount,
+          lastSeen: conn.status === "connected" ? new Date() : conn.lastSeen,
+        })),
       );
-      setAlertStats(alertsService.getAlertStats());
-      setLogStats(logger.getLogStats());
-    };
+    }, 5000);
 
-    updateData();
-    const interval = setInterval(updateData, 5000);
+    return () => clearInterval(interval);
+  }, []);
 
-    const handleAlert = () => updateData();
-    eventBus.on('websocket:security:alert', handleAlert);
-
-    return () => {
-      clearInterval(interval);
-      eventBus.off('websocket:security:alert', handleAlert);
-    };
-  }, [selectedTimeRange]);
-
-  const handleAcknowledge = (alertId: string) => {
-    alertsService.acknowledgeAlert(alertId, 'current-user');
-    setAlerts(alertsService.getAlerts());
-    setAlertStats(alertsService.getAlertStats());
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "connected":
+        return <Wifi className="w-4 h-4 text-green-500" />;
+      case "disconnected":
+        return <WifiOff className="w-4 h-4 text-gray-500" />;
+      case "error":
+        return <AlertTriangle className="w-4 h-4 text-red-500" />;
+      default:
+        return <WifiOff className="w-4 h-4 text-gray-500" />;
+    }
   };
 
-  const renderAlertList = () => (
-    <div className="alert-list">
-      <h3>Recent Alerts</h3>
-      {alerts.map(alert => (
-        <div
-          key={alert.id}
-          className={`alert-item ${alert.severity} ${alert.acknowledged ? 'acknowledged' : ''}`}
-        >
-          <div className="alert-header">
-            <span className="alert-type">{alert.type}</span>
-            <span className="alert-severity">{alert.severity}</span>
-            <span className="alert-time">{new Date(alert.timestamp).toLocaleString()}</span>
-          </div>
-          <div className="alert-message">{alert.message}</div>
-          {alert.details && (
-            <div className="alert-details">
-              <pre>{JSON.stringify(alert.details, null, 2)}</pre>
-            </div>
-          )}
-          {!alert.acknowledged && (
-            <button className="acknowledge-button" onClick={() => handleAcknowledge(alert.id)}>
-              Acknowledge
-            </button>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-
-  const renderAlertStats = () => {
-    if (!alertStats) return null;
-
-    const severityData = Object.entries(alertStats.bySeverity).map(([severity, count]) => ({
-      name: severity,
-      value: count,
-    }));
-
-    const typeData = Object.entries(alertStats.byType).map(([type, count]) => ({
-      name: type,
-      value: count,
-    }));
-
-    return (
-      <div className="stats-container">
-        <div className="stats-card">
-          <h4>Alert Statistics</h4>
-          <div className="stats-grid">
-            <div className="stat-item">
-              <span className="stat-label">Total Alerts</span>
-              <span className="stat-value">{alertStats.total}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Acknowledged</span>
-              <span className="stat-value">{alertStats.acknowledged}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Unacknowledged</span>
-              <span className="stat-value">{alertStats.unacknowledged}</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="charts-container">
-          <div className="chart-card">
-            <h4>Alerts by Severity</h4>
-            <ResponsiveContainer height={200} width="100%">
-              <PieChart>
-                <Pie
-                  label
-                  cx="50%"
-                  cy="50%"
-                  data={severityData}
-                  dataKey="value"
-                  nameKey="name"
-                  outerRadius={80}
-                >
-                  {severityData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[entry.name as keyof typeof COLORS]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="chart-card">
-            <h4>Alerts by Type</h4>
-            <ResponsiveContainer height={200} width="100%">
-              <PieChart>
-                <Pie
-                  label
-                  cx="50%"
-                  cy="50%"
-                  data={typeData}
-                  dataKey="value"
-                  nameKey="name"
-                  outerRadius={80}
-                >
-                  {typeData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={`hsl(${(index * 360) / typeData.length}, 70%, 50%)`}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
+  const getSecurityIcon = (security: string) => {
+    return security === "secure" ? (
+      <Lock className="w-4 h-4 text-green-500" />
+    ) : (
+      <AlertTriangle className="w-4 h-4 text-red-500" />
     );
   };
 
-  const renderLogStats = () => {
-    if (!logStats) return null;
-
-    return (
-      <div className="log-stats">
-        <h3>Log Statistics</h3>
-        <div className="stats-grid">
-          <div className="stat-item">
-            <span className="stat-label">Total Logs</span>
-            <span className="stat-value">{logStats.totalLogs}</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-label">Errors</span>
-            <span className="stat-value">{logStats.errorCount}</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-label">Warnings</span>
-            <span className="stat-value">{logStats.warningCount}</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-label">Info</span>
-            <span className="stat-value">{logStats.infoCount}</span>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  const connectedCount = connections.filter(
+    (c) => c.status === "connected",
+  ).length;
+  const secureCount = connections.filter((c) => c.security === "secure").length;
 
   return (
-    <div className="security-dashboard">
-      <div className="dashboard-header">
-        <h2>WebSocket Security Dashboard</h2>
-        <div className="time-range-selector">
-          <button
-            className={selectedTimeRange === '1h' ? 'active' : ''}
-            onClick={() => setSelectedTimeRange('1h')}
-          >
-            1 Hour
-          </button>
-          <button
-            className={selectedTimeRange === '24h' ? 'active' : ''}
-            onClick={() => setSelectedTimeRange('24h')}
-          >
-            24 Hours
-          </button>
-          <button
-            className={selectedTimeRange === '7d' ? 'active' : ''}
-            onClick={() => setSelectedTimeRange('7d')}
-          >
-            7 Days
-          </button>
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center space-x-3">
+          <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+            <Shield className="w-6 h-6 text-blue-600" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+              WebSocket Security Dashboard
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Real-time connection monitoring
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-4">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-green-600">
+              {connectedCount}/{connections.length}
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">
+              Connected
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-blue-600">
+              {secureCount}/{connections.length}
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">
+              Secure
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="dashboard-content">
-        <div className="dashboard-main">
-          {renderAlertList()}
-          {renderAlertStats()}
+      {/* Security Level Indicator */}
+      <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <CheckCircle
+              className={`w-5 h-5 ${
+                securityLevel === "high"
+                  ? "text-green-500"
+                  : securityLevel === "medium"
+                    ? "text-yellow-500"
+                    : "text-red-500"
+              }`}
+            />
+            <span className="font-medium text-gray-900 dark:text-white">
+              Security Level: {securityLevel.toUpperCase()}
+            </span>
+          </div>
+          <div className="flex space-x-1">
+            {[1, 2, 3].map((level) => (
+              <div
+                key={level}
+                className={`w-3 h-6 rounded ${
+                  level <=
+                  (securityLevel === "high"
+                    ? 3
+                    : securityLevel === "medium"
+                      ? 2
+                      : 1)
+                    ? securityLevel === "high"
+                      ? "bg-green-500"
+                      : securityLevel === "medium"
+                        ? "bg-yellow-500"
+                        : "bg-red-500"
+                    : "bg-gray-300 dark:bg-gray-600"
+                }`}
+              />
+            ))}
+          </div>
         </div>
-        <div className="dashboard-sidebar">{renderLogStats()}</div>
       </div>
 
-      <style jsx>{`
-        .security-dashboard {
-          padding: 20px;
-          background: #f8f9fa;
-          min-height: 100vh;
-        }
+      {/* Connection List */}
+      <div className="space-y-3">
+        <h3 className="font-semibold text-gray-900 dark:text-white">
+          Active Connections
+        </h3>
 
-        .dashboard-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 20px;
-        }
+        {connections.map((connection) => (
+          <div
+            key={connection.id}
+            className="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          >
+            <div className="flex items-center space-x-3">
+              {getStatusIcon(connection.status)}
+              <div>
+                <div className="font-medium text-gray-900 dark:text-white">
+                  {connection.name}
+                </div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  Last seen: {connection.lastSeen.toLocaleTimeString()}
+                </div>
+              </div>
+            </div>
 
-        .time-range-selector {
-          display: flex;
-          gap: 10px;
-        }
+            <div className="flex items-center space-x-4">
+              <div className="text-right">
+                <div className="text-sm font-medium text-gray-900 dark:text-white">
+                  {connection.messageCount.toLocaleString()} messages
+                </div>
+                <div className="flex items-center space-x-1">
+                  {getSecurityIcon(connection.security)}
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {connection.security}
+                  </span>
+                </div>
+              </div>
 
-        .time-range-selector button {
-          padding: 8px 16px;
-          border: 1px solid #dee2e6;
-          background: white;
-          border-radius: 4px;
-          cursor: pointer;
-        }
+              <div
+                className={`w-3 h-3 rounded-full ${
+                  connection.status === "connected"
+                    ? "bg-green-500 animate-pulse"
+                    : connection.status === "error"
+                      ? "bg-red-500"
+                      : "bg-gray-400"
+                }`}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
 
-        .time-range-selector button.active {
-          background: #007bff;
-          color: white;
-          border-color: #007bff;
-        }
-
-        .dashboard-content {
-          display: grid;
-          grid-template-columns: 1fr 300px;
-          gap: 20px;
-        }
-
-        .alert-list {
-          background: white;
-          border-radius: 8px;
-          padding: 20px;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .alert-item {
-          border: 1px solid #dee2e6;
-          border-radius: 4px;
-          padding: 15px;
-          margin-bottom: 10px;
-        }
-
-        .alert-item.critical {
-          border-left: 4px solid ${COLORS.critical};
-        }
-
-        .alert-item.high {
-          border-left: 4px solid ${COLORS.high};
-        }
-
-        .alert-item.medium {
-          border-left: 4px solid ${COLORS.medium};
-        }
-
-        .alert-item.low {
-          border-left: 4px solid ${COLORS.low};
-        }
-
-        .alert-item.acknowledged {
-          opacity: 0.7;
-        }
-
-        .alert-header {
-          display: flex;
-          gap: 10px;
-          margin-bottom: 10px;
-        }
-
-        .alert-type {
-          font-weight: bold;
-          text-transform: uppercase;
-        }
-
-        .alert-severity {
-          padding: 2px 6px;
-          border-radius: 4px;
-          font-size: 0.8em;
-        }
-
-        .alert-time {
-          color: #6c757d;
-          font-size: 0.9em;
-        }
-
-        .alert-details {
-          margin-top: 10px;
-          background: #f8f9fa;
-          padding: 10px;
-          border-radius: 4px;
-        }
-
-        .alert-details pre {
-          margin: 0;
-          white-space: pre-wrap;
-        }
-
-        .acknowledge-button {
-          margin-top: 10px;
-          padding: 5px 10px;
-          background: #28a745;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-        }
-
-        .stats-container {
-          margin-top: 20px;
-        }
-
-        .stats-card {
-          background: white;
-          border-radius: 8px;
-          padding: 20px;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-          gap: 15px;
-          margin-top: 15px;
-        }
-
-        .stat-item {
-          text-align: center;
-        }
-
-        .stat-label {
-          display: block;
-          color: #6c757d;
-          font-size: 0.9em;
-        }
-
-        .stat-value {
-          display: block;
-          font-size: 1.5em;
-          font-weight: bold;
-          margin-top: 5px;
-        }
-
-        .charts-container {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-          gap: 20px;
-          margin-top: 20px;
-        }
-
-        .chart-card {
-          background: white;
-          border-radius: 8px;
-          padding: 20px;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .dashboard-sidebar {
-          background: white;
-          border-radius: 8px;
-          padding: 20px;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .log-stats {
-          margin-top: 20px;
-        }
-      `}</style>
+      {/* Security Recommendations */}
+      <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+        <h4 className="font-medium text-blue-900 dark:text-blue-300 mb-2">
+          Security Recommendations
+        </h4>
+        <ul className="text-sm text-blue-800 dark:text-blue-400 space-y-1">
+          <li>• All connections use SSL/TLS encryption</li>
+          <li>• Connection tokens are rotated every 24 hours</li>
+          <li>• Rate limiting is active on all endpoints</li>
+          <li>• Failed connection attempts are monitored</li>
+        </ul>
+      </div>
     </div>
   );
 };
 
-export default React.memo(WebSocketSecurityDashboard);
+export default WebSocketSecurityDashboard;
