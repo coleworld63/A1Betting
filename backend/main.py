@@ -37,6 +37,9 @@ from ensemble_engine import ultra_ensemble_engine, PredictionContext, ModelType
 from realtime_engine import real_time_stream_manager, StreamType, UpdatePriority, StreamMessage
 from risk_management import ultra_risk_engine, RiskLevel, BettingStrategy
 from arbitrage_engine import ultra_arbitrage_engine, ArbitrageType, MarketInefficiencyType
+from task_processor import ultra_task_processor, TaskDefinition, TaskType, TaskPriority
+from cache_optimizer import ultra_cache_optimizer
+from system_monitor import ultra_system_monitor, MetricType, AlertSeverity
 from model_service import model_service, PredictionRequest
 from betting_opportunity_service import betting_opportunity_service
 from monitoring_service import monitoring_service, PerformanceData
