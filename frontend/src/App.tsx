@@ -65,18 +65,32 @@ interface RouteWrapperProps {
   routeName: string;
 }
 
-// Enhanced Loading Component
+// Enhanced Loading Component with Design System
 const LoadingFallback: React.FC<LoadingFallbackProps> = ({
   message = "Loading...",
 }) => (
   <div
-    className="flex flex-col justify-center items-center h-64 space-y-4"
+    className="flex-center flex-col h-64 space-y-6"
     role="status"
     aria-live="polite"
   >
-    <div className="animate-spin rounded-full h-12 w-12 border-4 border-brand-500 border-t-transparent shadow-lg"></div>
-    <div className="text-gray-600 dark:text-gray-300 font-medium">
+    <Spinner variant="brand" size="xl" />
+    <div className="text-gray-600 dark:text-gray-300 font-medium text-lg">
       {message}
+    </div>
+    <div className="flex space-x-1">
+      <div
+        className="w-2 h-2 bg-brand-500 rounded-full animate-bounce"
+        style={{ animationDelay: "0ms" }}
+      />
+      <div
+        className="w-2 h-2 bg-brand-500 rounded-full animate-bounce"
+        style={{ animationDelay: "150ms" }}
+      />
+      <div
+        className="w-2 h-2 bg-brand-500 rounded-full animate-bounce"
+        style={{ animationDelay: "300ms" }}
+      />
     </div>
   </div>
 );
