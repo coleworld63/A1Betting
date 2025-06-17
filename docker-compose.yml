@@ -1,24 +1,213 @@
-version: '3.8'
+version: "3.8"
+
 services:
-  backend:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: ${A1BETTING_POSTGRES_DB:-a1betting}
+      POSTGRES_USER: ${A1BETTING_POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${A1BETTING_POSTGRES_PASSWORD:-password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${A1BETTING_POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - a1betting-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - a1betting-network
+
+  # Main API Service
+  api:
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["python", "./backend/main.py"]
+      target: production
+    environment:
+      A1BETTING_ENVIRONMENT: ${A1BETTING_ENVIRONMENT:-production}
+      A1BETTING_DATABASE_URL: postgresql://${A1BETTING_POSTGRES_USER:-postgres}:${A1BETTING_POSTGRES_PASSWORD:-password}@postgres:5432/${A1BETTING_POSTGRES_DB:-a1betting}
+      A1BETTING_REDIS_URL: redis://redis:6379
+      A1BETTING_SPORTRADAR_API_KEY: ${A1BETTING_SPORTRADAR_API_KEY}
+      A1BETTING_ODDS_API_KEY: ${A1BETTING_ODDS_API_KEY}
+      A1BETTING_PRIZEPICKS_API_KEY: ${A1BETTING_PRIZEPICKS_API_KEY}
+      A1BETTING_SECRET_KEY: ${A1BETTING_SECRET_KEY}
     ports:
       - "8000:8000"
-    env_file:
-      - .env.example
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
-      - ./backend:/app/backend
-  frontend:
+      - ./models:/app/models:ro
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - a1betting-network
+
+  # Model Inference Service
+  model-service:
     build:
-      context: ./frontend
-      dockerfile: ../Dockerfile
-    command: ["npm", "run", "preview"]
+      context: .
+      dockerfile: Dockerfile
+      target: model-server
+    environment:
+      A1BETTING_ENVIRONMENT: ${A1BETTING_ENVIRONMENT:-production}
+      A1BETTING_DATABASE_URL: postgresql://${A1BETTING_POSTGRES_USER:-postgres}:${A1BETTING_POSTGRES_PASSWORD:-password}@postgres:5432/${A1BETTING_POSTGRES_DB:-a1betting}
+      A1BETTING_REDIS_URL: redis://redis:6379
     ports:
-      - "5173:5173"
-    env_file:
-      - .env.example
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     volumes:
-      - ./frontend:/frontend
+      - ./models:/app/models:ro
+      - ./logs:/app/logs
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "2.0"
+        reservations:
+          memory: 2G
+          cpus: "1.0"
+    networks:
+      - a1betting-network
+
+  # Prometheus Monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/etc/prometheus/console_libraries"
+      - "--web.console.templates=/etc/prometheus/consoles"
+      - "--storage.tsdb.retention.time=200h"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - a1betting-network
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: false
+    ports:
+      - "3001:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+    networks:
+      - a1betting-network
+
+  # Nginx Load Balancer
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - a1betting-network
+
+  # Background Worker for Data Pipeline
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    command:
+      ["python", "-m", "celery", "worker", "-A", "tasks", "--loglevel=info"]
+    environment:
+      A1BETTING_ENVIRONMENT: ${A1BETTING_ENVIRONMENT:-production}
+      A1BETTING_DATABASE_URL: postgresql://${A1BETTING_POSTGRES_USER:-postgres}:${A1BETTING_POSTGRES_PASSWORD:-password}@postgres:5432/${A1BETTING_POSTGRES_DB:-a1betting}
+      A1BETTING_REDIS_URL: redis://redis:6379
+      A1BETTING_SPORTRADAR_API_KEY: ${A1BETTING_SPORTRADAR_API_KEY}
+      A1BETTING_ODDS_API_KEY: ${A1BETTING_ODDS_API_KEY}
+      A1BETTING_PRIZEPICKS_API_KEY: ${A1BETTING_PRIZEPICKS_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - a1betting-network
+
+  # Celery Beat Scheduler
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    command:
+      ["python", "-m", "celery", "beat", "-A", "tasks", "--loglevel=info"]
+    environment:
+      A1BETTING_ENVIRONMENT: ${A1BETTING_ENVIRONMENT:-production}
+      A1BETTING_DATABASE_URL: postgresql://${A1BETTING_POSTGRES_USER:-postgres}:${A1BETTING_POSTGRES_PASSWORD:-password}@postgres:5432/${A1BETTING_POSTGRES_DB:-a1betting}
+      A1BETTING_REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - a1betting-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  a1betting-network:
+    driver: bridge
