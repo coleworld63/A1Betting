@@ -658,6 +658,14 @@ const App: React.FC = () => {
         );
 
       // Ultra-Advanced Accuracy Suite
+      case "/ultra-accuracy-overview":
+        return (
+          <RouteWrapper routeName="Ultra-Accuracy Overview">
+            <SuspenseWrapper loadingMessage="Loading Ultra-Accuracy Overview...">
+              <UltraAccuracyOverview />
+            </SuspenseWrapper>
+          </RouteWrapper>
+        );
       case "/ultra-ml-dashboard":
         return (
           <RouteWrapper routeName="Ultra ML Dashboard">
