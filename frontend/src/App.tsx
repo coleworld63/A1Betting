@@ -794,18 +794,21 @@ const App: React.FC = () => {
         </div>
       </nav>
 
-      {/* Main Content with Enhanced Error Handling and Transitions */}
+      {/* Main Content with Enhanced Design System */}
       <main
-        className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8"
+        className="max-w-8xl mx-auto py-8 px-4 sm:px-6 lg:px-8"
         role="main"
         aria-label="Main content"
       >
         <div
-          className={`px-4 py-6 sm:px-0 transition-all duration-300 ease-out ${
-            isTransitioning ? "opacity-50 scale-95" : "opacity-100 scale-100"
-          }`}
+          className={cn(
+            "transition-all duration-500 ease-out",
+            isTransitioning
+              ? "opacity-50 scale-95 blur-sm"
+              : "opacity-100 scale-100 blur-none",
+          )}
         >
-          {renderComponent()}
+          <div className="min-h-[calc(100vh-8rem)]">{renderComponent()}</div>
         </div>
       </main>
 
