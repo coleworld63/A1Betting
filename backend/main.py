@@ -254,7 +254,42 @@ async def health_check():
             details=pipeline_health["stats"]
         )
 
-        # Check model service
+        # Check ultra ensemble engine
+        ensemble_health = await ultra_ensemble_engine.get_ensemble_health()
+        services["ultra_ensemble"] = HealthStatus(
+            service="ultra_ensemble",
+            status=ensemble_health["status"],
+            response_time=0.0,
+            details={
+                "total_models": ensemble_health["total_models"],
+                "loaded_models": ensemble_health["loaded_models"],
+                "recent_predictions": ensemble_health["recent_predictions"]
+            }
+        )
+
+        # Check ultra data manager
+        data_manager_health = await ultra_data_manager.get_system_health()
+        services["ultra_data_manager"] = HealthStatus(
+            service="ultra_data_manager",
+            status=data_manager_health["overall_status"],
+            response_time=0.0,
+            details=data_manager_health["data_sources"]
+        )
+
+        # Check real-time stream manager
+        stream_health = await real_time_stream_manager.get_stream_health()
+        services["realtime_streams"] = HealthStatus(
+            service="realtime_streams",
+            status=stream_health["status"],
+            response_time=0.0,
+            details={
+                "active_subscribers": stream_health["active_subscribers"],
+                "message_queue_size": stream_health["message_queue_size"],
+                "websocket_connections": stream_health["websocket_connections"]
+            }
+        )
+
+        # Check model service (legacy)
         model_health = await model_service.get_model_health()
         services["model_service"] = HealthStatus(
             service="model_service",
