@@ -274,6 +274,31 @@ const navigationConfig: NavigationGroup[] = [
     ],
   },
   {
+    group: "Ultra-Accuracy Suite",
+    items: [
+      {
+        href: "#/ultra-ml-dashboard",
+        label: "🎯 Ultra ML Dashboard",
+        color: "text-purple-600",
+      },
+      {
+        href: "#/confidence-visualizer",
+        label: "📊 Confidence Analysis",
+        color: "text-blue-600",
+      },
+      {
+        href: "#/accuracy-monitor",
+        label: "🔍 Real-time Monitor",
+        color: "text-green-600",
+      },
+      {
+        href: "#/quantum-predictions",
+        label: "⚛️ Quantum Predictions",
+        color: "text-violet-600",
+      },
+    ],
+  },
+  {
     group: "Analytics & Real-time",
     items: [
       { href: "#/analytics", label: "📊 Analytics", color: "text-emerald-600" },
