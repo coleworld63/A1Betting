@@ -39,6 +39,9 @@ const AdvancedConfidenceVisualizer = lazy(
 const RealTimeAccuracyDashboard = lazy(
   () => import("./components/analytics/RealTimeAccuracyDashboard.tsx"),
 );
+const QuantumPredictionsInterface = lazy(
+  () => import("./components/prediction/QuantumPredictionsInterface.tsx"),
+);
 
 // TypeScript interfaces
 interface NavigationItem {
