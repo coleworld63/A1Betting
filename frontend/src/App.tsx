@@ -116,22 +116,28 @@ class RouteErrorBoundary extends Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex flex-col items-center justify-center h-64 space-y-4 text-center">
-          <div className="text-red-500 text-6xl">⚠️</div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Component Error
-          </h2>
-          <p className="text-gray-600 dark:text-gray-300 max-w-md">
-            There was an error loading the {this.props.routeName} component.
-          </p>
-          <button
+        <Card
+          variant="premium"
+          className="flex-center flex-col h-64 space-y-6 text-center max-w-md mx-auto"
+        >
+          <div className="text-6xl animate-bounce">⚠️</div>
+          <div className="space-y-3">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Component Error
+            </h2>
+            <p className="text-gray-600 dark:text-gray-300">
+              There was an error loading the {this.props.routeName} component.
+            </p>
+          </div>
+          <Button
+            variant="premium"
             onClick={() => window.location.reload()}
-            className="btn-premium"
             aria-label="Reload page to fix error"
+            className="min-w-32"
           >
             Reload Page
-          </button>
-        </div>
+          </Button>
+        </Card>
       );
     }
 
