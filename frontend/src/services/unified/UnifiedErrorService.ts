@@ -1,14 +1,14 @@
-import { EventEmitter } from 'events';
-import { UnifiedConfigManager } from '../unified/UnifiedConfig';
-import { UnifiedLogger } from '../unified/UnifiedLogger';
-import { UnifiedCache } from '../unified/UnifiedCache';
-import { BaseService } from './BaseService';
-import { UnifiedServiceRegistry } from './UnifiedServiceRegistry';
+import { EventEmitter } from "events";
+import { UnifiedConfig } from "../unified/UnifiedConfig";
+import { UnifiedLogger } from "../unified/UnifiedLogger";
+import { UnifiedCache } from "../unified/UnifiedCache";
+import { BaseService } from "./BaseService";
+import { UnifiedServiceRegistry } from "./UnifiedServiceRegistry";
 
 export interface ErrorContext {
   code: string;
   message: string;
-  severity: 'error' | 'warning' | 'info';
+  severity: "error" | "warning" | "info";
   timestamp: number;
   source: string;
   details?: Record<string, any>;
@@ -24,7 +24,7 @@ export interface ErrorDetails {
 
 export class UnifiedErrorService extends BaseService {
   private static instance: UnifiedErrorService;
-  private readonly config: UnifiedConfigManager;
+  private readonly config: UnifiedConfig;
   private readonly logger: UnifiedLogger;
   private readonly cache: UnifiedCache;
   private readonly errorHistory: ErrorContext[] = [];
@@ -33,13 +33,15 @@ export class UnifiedErrorService extends BaseService {
   private readonly maxErrors: number = 1000;
 
   private constructor(registry: UnifiedServiceRegistry) {
-    super('error', registry);
-    this.config = UnifiedConfigManager.getInstance();
+    super("error", registry);
+    this.config = UnifiedConfig.getInstance();
     this.logger = UnifiedLogger.getInstance();
     this.cache = UnifiedCache.getInstance();
   }
 
-  public static getInstance(registry: UnifiedServiceRegistry): UnifiedErrorService {
+  public static getInstance(
+    registry: UnifiedServiceRegistry,
+  ): UnifiedErrorService {
     if (!UnifiedErrorService.instance) {
       UnifiedErrorService.instance = new UnifiedErrorService(registry);
     }
@@ -53,9 +55,9 @@ export class UnifiedErrorService extends BaseService {
     };
 
     // Log error to console in development
-    if (process.env.NODE_ENV === 'development') {
-      console.error('Error:', error);
-      console.error('Details:', errorDetails);
+    if (process.env.NODE_ENV === "development") {
+      console.error("Error:", error);
+      console.error("Details:", errorDetails);
     }
 
     // Store error
@@ -65,7 +67,7 @@ export class UnifiedErrorService extends BaseService {
     }
 
     // Emit error event
-    this.emit('error', { error, details: errorDetails });
+    this.emit("error", { error, details: errorDetails });
   }
 
   public getErrors(limit: number = 100): ErrorDetails[] {
@@ -81,29 +83,31 @@ export class UnifiedErrorService extends BaseService {
   }
 
   public getErrorsByCode(code: string): ErrorDetails[] {
-    return this.errors.filter(error => error.code === code);
+    return this.errors.filter((error) => error.code === code);
   }
 
   public getErrorsBySource(source: string): ErrorDetails[] {
-    return this.errors.filter(error => error.source === source);
+    return this.errors.filter((error) => error.source === source);
   }
 
-  public getRecentErrors(timeRange: 'day' | 'week' | 'month' = 'day'): ErrorDetails[] {
+  public getRecentErrors(
+    timeRange: "day" | "week" | "month" = "day",
+  ): ErrorDetails[] {
     const now = Date.now();
     const rangeInMs = this.getTimeRangeInMs(timeRange);
     const cutoff = now - rangeInMs;
 
-    return this.errors.filter(error => (error.timestamp || 0) >= cutoff);
+    return this.errors.filter((error) => (error.timestamp || 0) >= cutoff);
   }
 
-  private getTimeRangeInMs(timeRange: 'day' | 'week' | 'month'): number {
+  private getTimeRangeInMs(timeRange: "day" | "week" | "month"): number {
     const day = 24 * 60 * 60 * 1000;
     switch (timeRange) {
-      case 'day':
+      case "day":
         return day;
-      case 'week':
+      case "week":
         return 7 * day;
-      case 'month':
+      case "month":
         return 30 * day;
       default:
         return day;
@@ -120,24 +124,24 @@ export class UnifiedErrorService extends BaseService {
 
   public clearErrorHistory(): void {
     this.errorHistory.length = 0;
-    this.cache.delete('recent_errors');
-    this.emit('error:history:cleared');
+    this.cache.delete("recent_errors");
+    this.emit("error:history:cleared");
   }
 
   public subscribe(callback: (error: ErrorContext) => void): () => void {
-    this.on('error:occurred', callback);
-    return () => this.off('error:occurred', callback);
+    this.on("error:occurred", callback);
+    return () => this.off("error:occurred", callback);
   }
 
   private handleErrorBySeverity(error: ErrorContext): void {
     switch (error.severity) {
-      case 'error':
+      case "error":
         this.handleCriticalError(error);
         break;
-      case 'warning':
+      case "warning":
         this.handleWarning(error);
         break;
-      case 'info':
+      case "info":
         this.handleInfo(error);
         break;
     }
@@ -146,24 +150,24 @@ export class UnifiedErrorService extends BaseService {
   private handleCriticalError(error: ErrorContext): void {
     // Implement critical error handling logic
     // For example, notify administrators, trigger fallback mechanisms, etc.
-    this.emit('error:critical', error);
+    this.emit("error:critical", error);
   }
 
   private handleWarning(error: ErrorContext): void {
     // Implement warning handling logic
     // For example, log to monitoring system, notify developers, etc.
-    this.emit('error:warning', error);
+    this.emit("error:warning", error);
   }
 
   private handleInfo(error: ErrorContext): void {
     // Implement info handling logic
     // For example, log to analytics, track patterns, etc.
-    this.emit('error:info', error);
+    this.emit("error:info", error);
   }
 
   public isErrorRecoverable(error: ErrorContext): boolean {
     // Implement logic to determine if an error is recoverable
-    const recoverableCodes = this.config.get('recoverableErrorCodes') || [];
+    const recoverableCodes = this.config.get("recoverableErrorCodes") || [];
     return recoverableCodes.includes(error.code);
   }
 
@@ -176,9 +180,11 @@ export class UnifiedErrorService extends BaseService {
   } {
     return {
       totalErrors: this.errorHistory.length,
-      criticalErrors: this.errorHistory.filter(e => e.severity === 'error').length,
-      warnings: this.errorHistory.filter(e => e.severity === 'warning').length,
-      info: this.errorHistory.filter(e => e.severity === 'info').length,
+      criticalErrors: this.errorHistory.filter((e) => e.severity === "error")
+        .length,
+      warnings: this.errorHistory.filter((e) => e.severity === "warning")
+        .length,
+      info: this.errorHistory.filter((e) => e.severity === "info").length,
       lastErrorTime: this.errorHistory[0]?.timestamp || 0,
     };
   }

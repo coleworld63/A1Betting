@@ -1,1248 +1,646 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Box,
-  Grid,
-  Chip,
-  Alert,
-  LinearProgress,
-  Tooltip,
-  IconButton,
-  Divider,
-  Paper,
-  Stack,
-  Switch,
-  FormControlLabel,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Tab,
-  Tabs,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Stepper,
-  Step,
-  StepLabel,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  Badge,
-  Avatar,
-  ButtonGroup,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-} from "@mui/material";
+import React, { useState, useEffect } from "react";
 import {
   TrendingUp,
   TrendingDown,
-  Assessment,
-  MonetizationOn,
-  Warning,
-  Info,
-  Download,
-  Settings,
-  PlayArrow,
-  Stop,
-  Refresh,
-  Add,
-  Remove,
-  ShoppingCart,
-  History,
-  Timeline,
-  Speed,
-  Psychology,
-  Calculate,
-  AutoAwesome,
-  CandlestickChart,
-  ShowChart,
-  BarChart,
-  PieChart,
-  Visibility,
-  VisibilityOff,
-  Lock,
-  LockOpen,
-  Notifications,
-  NotificationsOff,
-  Schedule,
+  DollarSign,
+  Target,
+  Clock,
+  AlertCircle,
   CheckCircle,
-  Error,
-  ExpandMore,
-  FilterList,
-  Sort,
+  Zap,
+  BarChart3,
+  Filter,
   Search,
-  BookmarkBorder,
-  Bookmark,
-  Share,
-  Print,
-} from "@mui/icons-material";
+  RefreshCw,
+  Play,
+  Pause,
+  Settings,
+} from "lucide-react";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  Legend,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  BarChart as RechartsBarChart,
-  Bar,
-  ComposedChart,
-  ScatterChart,
-  Scatter,
-} from "recharts";
-import {
-  formatCurrency,
-  formatPercentage,
-  formatOdds,
-  formatDateTime,
-} from "../../utils/formatters";
+  useBetting,
+  useUser,
+  useUI,
+} from "../../store/unified/UnifiedStoreManager";
+import { dataPipeline } from "../../services/data/UnifiedDataPipeline";
+import type {
+  OddsData,
+  GameData,
+} from "../../services/data/UnifiedDataPipeline";
 
-interface BettingOpportunity {
+interface BettingMarket {
   id: string;
+  name: string;
   sport: string;
-  league: string;
   event: string;
-  market: string;
-  selection: string;
-  odds: number;
-  impliedProbability: number;
-  prediction: {
-    probability: number;
-    confidence: number;
-    edge: number;
-    expectedValue: number;
-    kellyFraction: number;
-  };
-  bookmaker: string;
+  type: "moneyline" | "spread" | "total" | "props";
+  odds: OddsData[];
   volume: number;
   lastUpdate: Date;
-  timeToExpiry: number;
-  riskLevel: "low" | "medium" | "high";
-  tags: string[];
-  liquidity: number;
-  spread: number;
+  trend: "up" | "down" | "stable";
+  valueScore: number;
 }
 
-interface BetSlipItem {
-  opportunityId: string;
-  stake: number;
-  potentialPayout: number;
-  odds: number;
-  isLocked: boolean;
-}
-
-interface PortfolioPosition {
+interface LiveGame {
   id: string;
   sport: string;
-  market: string;
-  exposure: number;
-  positions: number;
-  averageOdds: number;
-  currentValue: number;
-  pnl: number;
-  riskMetrics: {
-    var: number;
-    expectedShortfall: number;
-    correlation: number;
+  homeTeam: string;
+  awayTeam: string;
+  status: "scheduled" | "live" | "finished";
+  startTime: Date;
+  markets: BettingMarket[];
+  liveScore?: {
+    home: number;
+    away: number;
+    period: string;
+    timeRemaining?: string;
   };
 }
 
-interface TradingSession {
-  id: string;
-  startTime: Date;
-  duration: number;
-  betsPlaced: number;
-  totalStake: number;
-  pnl: number;
-  winRate: number;
-  sharpeRatio: number;
-  maxDrawdown: number;
-}
+const UnifiedBettingInterface: React.FC = () => {
+  const [liveGames, setLiveGames] = useState<LiveGame[]>([]);
+  const [selectedSport, setSelectedSport] = useState<string>("all");
+  const [selectedMarket, setSelectedMarket] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState<"value" | "volume" | "odds">("value");
+  const [isLiveMode, setIsLiveMode] = useState(true);
+  const [selectedBet, setSelectedBet] = useState<BettingMarket | null>(null);
+  const [stakeAmount, setStakeAmount] = useState<number>(0);
 
-const RISK_LEVELS = {
-  low: { color: "#2e7d32", label: "Low Risk" },
-  medium: { color: "#ed6c02", label: "Medium Risk" },
-  high: { color: "#d32f2f", label: "High Risk" },
-};
+  const { bankroll, addBet, opportunities } = useBetting();
+  const { preferences } = useUser();
+  const { addToast } = useUI();
 
-const COLORS = {
-  primary: "#1976d2",
-  secondary: "#dc004e",
-  success: "#2e7d32",
-  warning: "#ed6c02",
-  error: "#d32f2f",
-  info: "#0288d1",
-};
-
-export const UnifiedBettingInterface: React.FC = () => {
-  // State Management
-  const [activeTab, setActiveTab] = useState(0);
-  const [opportunities, setOpportunities] = useState<BettingOpportunity[]>([]);
-  const [betSlip, setBetSlip] = useState<BetSlipItem[]>([]);
-  const [portfolio, setPortfolio] = useState<PortfolioPosition[]>([]);
-  const [tradingSession, setTradingSession] = useState<TradingSession | null>(
-    null,
-  );
-  const [selectedOpportunity, setSelectedOpportunity] =
-    useState<BettingOpportunity | null>(null);
-
-  // Trading State
-  const [isTrading, setIsTrading] = useState(false);
-  const [autoTrading, setAutoTrading] = useState(false);
-  const [riskManagement, setRiskManagement] = useState(true);
-  const [showOnlyEdge, setShowOnlyEdge] = useState(false);
-  const [maxStakePerBet, setMaxStakePerBet] = useState(100);
-  const [totalBankroll, setTotalBankroll] = useState(10000);
-
-  // UI State
-  const [isLoading, setIsLoading] = useState(true);
-  const [showBetDialog, setShowBetDialog] = useState(false);
-  const [showPortfolioDialog, setShowPortfolioDialog] = useState(false);
-  const [filters, setFilters] = useState({
-    sport: "all",
-    market: "all",
-    minEdge: 0,
-    maxRisk: "high",
-    minConfidence: 0,
-    bookmaker: "all",
-  });
-
-  // Load Trading Data
-  const loadTradingData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      // Simulate loading betting opportunities
-      const mockOpportunities: BettingOpportunity[] = [
-        {
-          id: "opp-001",
-          sport: "Basketball",
-          league: "NBA",
-          event: "Lakers vs Warriors",
-          market: "Player Points",
-          selection: "LeBron James Over 25.5",
-          odds: 1.91,
-          impliedProbability: 0.523,
-          prediction: {
-            probability: 0.67,
-            confidence: 0.82,
-            edge: 0.147,
-            expectedValue: 12.85,
-            kellyFraction: 0.08,
-          },
-          bookmaker: "DraftKings",
-          volume: 245000,
-          lastUpdate: new Date(Date.now() - 300000),
-          timeToExpiry: 7200000,
-          riskLevel: "low",
-          tags: ["trending", "high-volume", "injury-news"],
-          liquidity: 0.95,
-          spread: 0.02,
-        },
-        {
-          id: "opp-002",
-          sport: "Football",
-          league: "NFL",
-          event: "Chiefs vs Bills",
-          market: "Spread",
-          selection: "Chiefs -3.5",
-          odds: 2.15,
-          impliedProbability: 0.465,
-          prediction: {
-            probability: 0.58,
-            confidence: 0.74,
-            edge: 0.115,
-            expectedValue: 8.92,
-            kellyFraction: 0.06,
-          },
-          bookmaker: "FanDuel",
-          volume: 189000,
-          lastUpdate: new Date(Date.now() - 180000),
-          timeToExpiry: 14400000,
-          riskLevel: "medium",
-          tags: ["primetime", "divisional"],
-          liquidity: 0.88,
-          spread: 0.03,
-        },
-        {
-          id: "opp-003",
-          sport: "Soccer",
-          league: "Premier League",
-          event: "Man City vs Liverpool",
-          market: "Match Result",
-          selection: "Man City Win",
-          odds: 2.45,
-          impliedProbability: 0.408,
-          prediction: {
-            probability: 0.52,
-            confidence: 0.69,
-            edge: 0.112,
-            expectedValue: 15.67,
-            kellyFraction: 0.05,
-          },
-          bookmaker: "Bet365",
-          volume: 567000,
-          lastUpdate: new Date(Date.now() - 120000),
-          timeToExpiry: 3600000,
-          riskLevel: "medium",
-          tags: ["classic", "high-stakes"],
-          liquidity: 0.92,
-          spread: 0.025,
-        },
-        {
-          id: "opp-004",
-          sport: "Tennis",
-          league: "ATP",
-          event: "Djokovic vs Nadal",
-          market: "Match Winner",
-          selection: "Djokovic",
-          odds: 1.75,
-          impliedProbability: 0.571,
-          prediction: {
-            probability: 0.68,
-            confidence: 0.91,
-            edge: 0.109,
-            expectedValue: 7.43,
-            kellyFraction: 0.07,
-          },
-          bookmaker: "Pinnacle",
-          volume: 123000,
-          lastUpdate: new Date(Date.now() - 60000),
-          timeToExpiry: 1800000,
-          riskLevel: "low",
-          tags: ["GOAT-matchup", "clay-court"],
-          liquidity: 0.85,
-          spread: 0.015,
-        },
-      ];
-
-      const mockPortfolio: PortfolioPosition[] = [
-        {
-          id: "pos-001",
-          sport: "Basketball",
-          market: "Player Props",
-          exposure: 2450.0,
-          positions: 8,
-          averageOdds: 1.92,
-          currentValue: 2687.5,
-          pnl: 237.5,
-          riskMetrics: {
-            var: -145.67,
-            expectedShortfall: -201.34,
-            correlation: 0.23,
-          },
-        },
-        {
-          id: "pos-002",
-          sport: "Football",
-          market: "Spreads",
-          exposure: 1890.0,
-          positions: 5,
-          averageOdds: 2.01,
-          currentValue: 1756.2,
-          pnl: -133.8,
-          riskMetrics: {
-            var: -187.23,
-            expectedShortfall: -245.67,
-            correlation: 0.45,
-          },
-        },
-      ];
-
-      const mockSession: TradingSession = {
-        id: "session-001",
-        startTime: new Date(Date.now() - 14400000),
-        duration: 14400000,
-        betsPlaced: 23,
-        totalStake: 2340.0,
-        pnl: 456.78,
-        winRate: 0.652,
-        sharpeRatio: 1.89,
-        maxDrawdown: -0.085,
-      };
-
-      setOpportunities(mockOpportunities);
-      setPortfolio(mockPortfolio);
-      setTradingSession(mockSession);
-    } catch (error) {
-      console.error("Failed to load trading data:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Load data on mount
   useEffect(() => {
-    loadTradingData();
+    const loadLiveGames = async () => {
+      try {
+        // Mock live games data - in real app, this would come from data pipeline
+        const mockGames: LiveGame[] = [
+          {
+            id: "game-1",
+            sport: "NBA",
+            homeTeam: "Los Angeles Lakers",
+            awayTeam: "Golden State Warriors",
+            status: "live",
+            startTime: new Date(),
+            liveScore: {
+              home: 78,
+              away: 82,
+              period: "3rd Quarter",
+              timeRemaining: "8:45",
+            },
+            markets: [
+              {
+                id: "market-1",
+                name: "Lakers vs Warriors - Moneyline",
+                sport: "NBA",
+                event: "Lakers vs Warriors",
+                type: "moneyline",
+                odds: [
+                  {
+                    eventId: "game-1",
+                    bookmaker: "DraftKings",
+                    market: "moneyline",
+                    outcomes: [
+                      { name: "Lakers", odds: 2.1 },
+                      { name: "Warriors", odds: 1.8 },
+                    ],
+                    timestamp: Date.now(),
+                  },
+                ],
+                volume: 85000,
+                lastUpdate: new Date(),
+                trend: "up",
+                valueScore: 8.5,
+              },
+              {
+                id: "market-2",
+                name: "Lakers vs Warriors - Total Points",
+                sport: "NBA",
+                event: "Lakers vs Warriors",
+                type: "total",
+                odds: [
+                  {
+                    eventId: "game-1",
+                    bookmaker: "FanDuel",
+                    market: "totals",
+                    outcomes: [
+                      { name: "Over 225.5", odds: 1.9 },
+                      { name: "Under 225.5", odds: 1.9 },
+                    ],
+                    timestamp: Date.now(),
+                  },
+                ],
+                volume: 92000,
+                lastUpdate: new Date(),
+                trend: "down",
+                valueScore: 7.2,
+              },
+            ],
+          },
+          {
+            id: "game-2",
+            sport: "NBA",
+            homeTeam: "Boston Celtics",
+            awayTeam: "Miami Heat",
+            status: "scheduled",
+            startTime: new Date(Date.now() + 3600000), // 1 hour from now
+            markets: [
+              {
+                id: "market-3",
+                name: "Celtics vs Heat - Spread",
+                sport: "NBA",
+                event: "Celtics vs Heat",
+                type: "spread",
+                odds: [
+                  {
+                    eventId: "game-2",
+                    bookmaker: "BetMGM",
+                    market: "spreads",
+                    outcomes: [
+                      { name: "Celtics -4.5", odds: 1.91 },
+                      { name: "Heat +4.5", odds: 1.91 },
+                    ],
+                    timestamp: Date.now(),
+                  },
+                ],
+                volume: 67000,
+                lastUpdate: new Date(),
+                trend: "stable",
+                valueScore: 9.1,
+              },
+            ],
+          },
+        ];
 
-    // Auto-refresh data
-    const interval = setInterval(loadTradingData, 30000);
-    return () => clearInterval(interval);
-  }, [loadTradingData]);
-
-  // Filtered opportunities
-  const filteredOpportunities = useMemo(() => {
-    let filtered = opportunities;
-
-    if (filters.sport !== "all") {
-      filtered = filtered.filter((opp) => opp.sport === filters.sport);
-    }
-
-    if (filters.market !== "all") {
-      filtered = filtered.filter((opp) => opp.market === filters.market);
-    }
-
-    if (filters.minEdge > 0) {
-      filtered = filtered.filter(
-        (opp) => opp.prediction.edge >= filters.minEdge,
-      );
-    }
-
-    if (filters.maxRisk !== "high") {
-      const riskOrder = { low: 0, medium: 1, high: 2 };
-      const maxRiskLevel = riskOrder[filters.maxRisk as keyof typeof riskOrder];
-      filtered = filtered.filter(
-        (opp) => riskOrder[opp.riskLevel] <= maxRiskLevel,
-      );
-    }
-
-    if (filters.minConfidence > 0) {
-      filtered = filtered.filter(
-        (opp) => opp.prediction.confidence >= filters.minConfidence,
-      );
-    }
-
-    if (showOnlyEdge) {
-      filtered = filtered.filter((opp) => opp.prediction.edge > 0);
-    }
-
-    return filtered.sort(
-      (a, b) => b.prediction.expectedValue - a.prediction.expectedValue,
-    );
-  }, [opportunities, filters, showOnlyEdge]);
-
-  // Bet slip calculations
-  const betSlipTotals = useMemo(() => {
-    const totalStake = betSlip.reduce((sum, item) => sum + item.stake, 0);
-    const totalPayout = betSlip.reduce(
-      (sum, item) => sum + item.potentialPayout,
-      0,
-    );
-    const totalProfit = totalPayout - totalStake;
-
-    return { totalStake, totalPayout, totalProfit };
-  }, [betSlip]);
-
-  // Portfolio metrics
-  const portfolioMetrics = useMemo(() => {
-    const totalExposure = portfolio.reduce((sum, pos) => sum + pos.exposure, 0);
-    const totalPnL = portfolio.reduce((sum, pos) => sum + pos.pnl, 0);
-    const totalPositions = portfolio.reduce(
-      (sum, pos) => sum + pos.positions,
-      0,
-    );
-    const totalVar = portfolio.reduce(
-      (sum, pos) => sum + pos.riskMetrics.var,
-      0,
-    );
-
-    return { totalExposure, totalPnL, totalPositions, totalVar };
-  }, [portfolio]);
-
-  // Event Handlers
-  const handleAddToBetSlip = useCallback(
-    (opportunity: BettingOpportunity, stake: number = 50) => {
-      const existingItem = betSlip.find(
-        (item) => item.opportunityId === opportunity.id,
-      );
-
-      if (existingItem) {
-        setBetSlip((prev) =>
-          prev.map((item) =>
-            item.opportunityId === opportunity.id
-              ? {
-                  ...item,
-                  stake: item.stake + stake,
-                  potentialPayout: (item.stake + stake) * opportunity.odds,
-                }
-              : item,
-          ),
-        );
-      } else {
-        const newItem: BetSlipItem = {
-          opportunityId: opportunity.id,
-          stake,
-          potentialPayout: stake * opportunity.odds,
-          odds: opportunity.odds,
-          isLocked: false,
-        };
-        setBetSlip((prev) => [...prev, newItem]);
+        setLiveGames(mockGames);
+      } catch (error) {
+        addToast({
+          type: "error",
+          title: "Loading Failed",
+          message: "Failed to load live betting markets",
+        });
       }
-    },
-    [betSlip],
-  );
+    };
 
-  const handleRemoveFromBetSlip = useCallback((opportunityId: string) => {
-    setBetSlip((prev) =>
-      prev.filter((item) => item.opportunityId !== opportunityId),
-    );
-  }, []);
+    loadLiveGames();
 
-  const handleUpdateStake = useCallback(
-    (opportunityId: string, newStake: number) => {
-      setBetSlip((prev) =>
-        prev.map((item) =>
-          item.opportunityId === opportunityId
-            ? {
-                ...item,
-                stake: newStake,
-                potentialPayout: newStake * item.odds,
-              }
-            : item,
-        ),
-      );
-    },
-    [],
-  );
-
-  const handlePlaceBets = useCallback(async () => {
-    try {
-      setIsLoading(true);
-
-      // Simulate placing bets
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // Clear bet slip
-      setBetSlip([]);
-
-      // Update session stats
-      if (tradingSession) {
-        setTradingSession((prev) =>
-          prev
-            ? {
-                ...prev,
-                betsPlaced: prev.betsPlaced + betSlip.length,
-                totalStake: prev.totalStake + betSlipTotals.totalStake,
-              }
-            : null,
-        );
-      }
-
-      console.log("Bets placed successfully");
-    } catch (error) {
-      console.error("Failed to place bets:", error);
-    } finally {
-      setIsLoading(false);
+    if (isLiveMode) {
+      const interval = setInterval(loadLiveGames, 5000); // Update every 5 seconds in live mode
+      return () => clearInterval(interval);
     }
-  }, [betSlip, betSlipTotals.totalStake, tradingSession]);
+  }, [isLiveMode, addToast]);
 
-  const handleStartTrading = useCallback(() => {
-    setIsTrading(true);
-    if (!tradingSession) {
-      setTradingSession({
-        id: `session-${Date.now()}`,
-        startTime: new Date(),
-        duration: 0,
-        betsPlaced: 0,
-        totalStake: 0,
-        pnl: 0,
-        winRate: 0,
-        sharpeRatio: 0,
-        maxDrawdown: 0,
+  const filteredMarkets = liveGames
+    .flatMap((game) => game.markets)
+    .filter((market) => {
+      const matchesSport =
+        selectedSport === "all" || market.sport === selectedSport;
+      const matchesMarket =
+        selectedMarket === "all" || market.type === selectedMarket;
+      const matchesSearch =
+        searchTerm === "" ||
+        market.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        market.event.toLowerCase().includes(searchTerm.toLowerCase());
+
+      return matchesSport && matchesMarket && matchesSearch;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "value":
+          return b.valueScore - a.valueScore;
+        case "volume":
+          return b.volume - a.volume;
+        case "odds":
+          return (
+            (a.odds[0]?.outcomes[0]?.odds || 0) -
+            (b.odds[0]?.outcomes[0]?.odds || 0)
+          );
+        default:
+          return 0;
+      }
+    });
+
+  const placeBet = (
+    market: BettingMarket,
+    outcome: string,
+    odds: number,
+    amount: number,
+  ) => {
+    if (amount > bankroll) {
+      addToast({
+        type: "error",
+        title: "Insufficient Funds",
+        message: "Bet amount exceeds available bankroll",
       });
+      return;
     }
-  }, [tradingSession]);
 
-  const handleStopTrading = useCallback(() => {
-    setIsTrading(false);
-    setAutoTrading(false);
-  }, []);
+    if (amount < 1) {
+      addToast({
+        type: "error",
+        title: "Invalid Amount",
+        message: "Bet amount must be at least $1",
+      });
+      return;
+    }
 
-  if (isLoading && opportunities.length === 0) {
+    addBet({
+      eventId: market.id,
+      amount,
+      odds,
+      status: "active",
+    });
+
+    addToast({
+      type: "success",
+      title: "Bet Placed",
+      message: `${outcome} - $${amount} at ${odds}`,
+    });
+
+    setSelectedBet(null);
+    setStakeAmount(0);
+  };
+
+  const getTrendIcon = (trend: string) => {
+    switch (trend) {
+      case "up":
+        return <TrendingUp className="w-4 h-4 text-green-500" />;
+      case "down":
+        return <TrendingDown className="w-4 h-4 text-red-500" />;
+      default:
+        return <BarChart3 className="w-4 h-4 text-gray-500" />;
+    }
+  };
+
+  const getValueColor = (score: number) => {
+    if (score >= 8) return "text-green-600 bg-green-100";
+    if (score >= 6) return "text-yellow-600 bg-yellow-100";
+    return "text-red-600 bg-red-100";
+  };
+
+  const MarketCard: React.FC<{ market: BettingMarket }> = ({ market }) => {
+    const game = liveGames.find((g) => g.markets.includes(market));
+
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        height={400}
-      >
-        <LinearProgress sx={{ width: "50%" }} />
-      </Box>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow">
+        {/* Market Header */}
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h3 className="font-semibold text-gray-900 dark:text-white text-sm">
+              {market.event}
+            </h3>
+            <div className="flex items-center space-x-2 text-xs text-gray-600 dark:text-gray-400">
+              <span>{market.sport}</span>
+              <span>•</span>
+              <span>{market.type.toUpperCase()}</span>
+              {game?.status === "live" && (
+                <>
+                  <span>•</span>
+                  <span className="text-red-500 font-medium">LIVE</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            {getTrendIcon(market.trend)}
+            <span
+              className={`px-2 py-1 rounded text-xs font-medium ${getValueColor(market.valueScore)}`}
+            >
+              {market.valueScore.toFixed(1)}
+            </span>
+          </div>
+        </div>
+
+        {/* Live Score (if applicable) */}
+        {game?.liveScore && (
+          <div className="mb-3 p-2 bg-gray-50 dark:bg-gray-700 rounded text-xs">
+            <div className="flex justify-between items-center">
+              <span>
+                {game.homeTeam}: {game.liveScore.home}
+              </span>
+              <span className="font-medium">{game.liveScore.period}</span>
+              <span>
+                {game.awayTeam}: {game.liveScore.away}
+              </span>
+            </div>
+            {game.liveScore.timeRemaining && (
+              <div className="text-center text-gray-500 dark:text-gray-400 mt-1">
+                {game.liveScore.timeRemaining}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Betting Options */}
+        <div className="space-y-2 mb-3">
+          {market.odds[0]?.outcomes.map((outcome, index) => (
+            <button
+              key={index}
+              onClick={() => {
+                setSelectedBet(market);
+                setStakeAmount(preferences.bankrollPercentage * bankroll);
+              }}
+              className="w-full flex items-center justify-between p-2 border border-gray-200 dark:border-gray-600 rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              <span className="font-medium text-gray-900 dark:text-white text-sm">
+                {outcome.name}
+              </span>
+              <span className="font-bold text-blue-600">
+                {outcome.odds.toFixed(2)}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Market Info */}
+        <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+          <div className="flex items-center space-x-2">
+            <BarChart3 className="w-3 h-3" />
+            <span>Volume: ${market.volume.toLocaleString()}</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <Clock className="w-3 h-3" />
+            <span>{market.lastUpdate.toLocaleTimeString()}</span>
+          </div>
+        </div>
+      </div>
     );
-  }
+  };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="w-full"
-    >
-      <Grid container spacing={2}>
-        {/* Main Trading Interface */}
-        <Grid item xs={12} md={8}>
-          <Card sx={{ mb: 2 }}>
-            <CardContent>
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-                mb={2}
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Unified Betting Interface
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Real-time betting markets with AI-powered value analysis
+          </p>
+        </div>
+
+        <div className="flex items-center space-x-3">
+          <div className="text-right">
+            <div className="text-xl font-bold text-gray-900 dark:text-white">
+              ${bankroll.toLocaleString()}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Bankroll
+            </div>
+          </div>
+
+          <button
+            onClick={() => setIsLiveMode(!isLiveMode)}
+            className={`flex items-center space-x-2 px-3 py-2 rounded-lg font-medium transition-colors ${
+              isLiveMode
+                ? "bg-green-100 text-green-700 hover:bg-green-200"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            {isLiveMode ? (
+              <Play className="w-4 h-4" />
+            ) : (
+              <Pause className="w-4 h-4" />
+            )}
+            <span>{isLiveMode ? "LIVE" : "PAUSED"}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search markets..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            />
+          </div>
+
+          {/* Sport Filter */}
+          <select
+            value={selectedSport}
+            onChange={(e) => setSelectedSport(e.target.value)}
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+          >
+            <option value="all">All Sports</option>
+            <option value="NBA">NBA</option>
+            <option value="NFL">NFL</option>
+            <option value="MLB">MLB</option>
+            <option value="EPL">EPL</option>
+          </select>
+
+          {/* Market Filter */}
+          <select
+            value={selectedMarket}
+            onChange={(e) => setSelectedMarket(e.target.value)}
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+          >
+            <option value="all">All Markets</option>
+            <option value="moneyline">Moneyline</option>
+            <option value="spread">Spread</option>
+            <option value="total">Totals</option>
+            <option value="props">Player Props</option>
+          </select>
+
+          {/* Sort */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+          >
+            <option value="value">Sort by Value</option>
+            <option value="volume">Sort by Volume</option>
+            <option value="odds">Sort by Odds</option>
+          </select>
+
+          {/* Refresh */}
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            <span>Refresh</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Bar */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center space-x-2">
+            <Target className="w-5 h-5 text-blue-600" />
+            <div>
+              <div className="text-lg font-bold text-gray-900 dark:text-white">
+                {filteredMarkets.length}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Markets
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center space-x-2">
+            <Zap className="w-5 h-5 text-green-600" />
+            <div>
+              <div className="text-lg font-bold text-gray-900 dark:text-white">
+                {liveGames.filter((g) => g.status === "live").length}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Live Games
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center space-x-2">
+            <TrendingUp className="w-5 h-5 text-purple-600" />
+            <div>
+              <div className="text-lg font-bold text-gray-900 dark:text-white">
+                {opportunities.length}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Opportunities
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center space-x-2">
+            <BarChart3 className="w-5 h-5 text-yellow-600" />
+            <div>
+              <div className="text-lg font-bold text-gray-900 dark:text-white">
+                {filteredMarkets.length > 0
+                  ? (
+                      filteredMarkets.reduce(
+                        (sum, m) => sum + m.valueScore,
+                        0,
+                      ) / filteredMarkets.length
+                    ).toFixed(1)
+                  : "0.0"}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Avg Value
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Markets Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+        {filteredMarkets.map((market) => (
+          <MarketCard key={market.id} market={market} />
+        ))}
+      </div>
+
+      {/* No Markets */}
+      {filteredMarkets.length === 0 && (
+        <div className="text-center py-12">
+          <div className="text-gray-400 text-6xl mb-4">🎯</div>
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+            No markets found
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400">
+            Try adjusting your filters or check back later for new opportunities
+          </p>
+        </div>
+      )}
+
+      {/* Bet Placement Modal */}
+      {selectedBet && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Place Bet
+            </h3>
+
+            <div className="mb-4">
+              <p className="text-gray-600 dark:text-gray-400 mb-2">
+                {selectedBet.name}
+              </p>
+            </div>
+
+            <div className="space-y-3 mb-4">
+              {selectedBet.odds[0]?.outcomes.map((outcome, index) => (
+                <div
+                  key={index}
+                  className="flex items-center justify-between p-3 border border-gray-200 dark:border-gray-600 rounded-lg"
+                >
+                  <span className="font-medium text-gray-900 dark:text-white">
+                    {outcome.name}
+                  </span>
+                  <span className="font-bold text-blue-600">
+                    {outcome.odds.toFixed(2)}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Stake Amount
+              </label>
+              <input
+                type="number"
+                value={stakeAmount}
+                onChange={(e) =>
+                  setStakeAmount(parseFloat(e.target.value) || 0)
+                }
+                min="1"
+                max={bankroll}
+                step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+              <div className="flex justify-between text-xs text-gray-500 dark:text-gray-500 mt-1">
+                <span>Min: $1</span>
+                <span>Max: ${bankroll.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div className="flex space-x-3">
+              <button
+                onClick={() => {
+                  setSelectedBet(null);
+                  setStakeAmount(0);
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
               >
-                <Typography
-                  variant="h5"
-                  component="h2"
-                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                >
-                  <CandlestickChart />
-                  Unified Betting Interface
-                  <Badge
-                    badgeContent={filteredOpportunities.length}
-                    color="primary"
-                  >
-                    <Assessment />
-                  </Badge>
-                </Typography>
-                <Box display="flex" gap={1} alignItems="center">
-                  {!isTrading ? (
-                    <Button
-                      variant="contained"
-                      color="success"
-                      onClick={handleStartTrading}
-                      startIcon={<PlayArrow />}
-                    >
-                      Start Trading
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="contained"
-                      color="error"
-                      onClick={handleStopTrading}
-                      startIcon={<Stop />}
-                    >
-                      Stop Trading
-                    </Button>
-                  )}
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={autoTrading}
-                        onChange={(e) => setAutoTrading(e.target.checked)}
-                        disabled={!isTrading}
-                      />
-                    }
-                    label="Auto"
-                  />
-                  <IconButton onClick={loadTradingData}>
-                    <Refresh />
-                  </IconButton>
-                </Box>
-              </Box>
-
-              {/* Trading Session Stats */}
-              {tradingSession && (
-                <Grid container spacing={2} sx={{ mb: 3 }}>
-                  <Grid item xs={3}>
-                    <Paper sx={{ p: 1, textAlign: "center" }}>
-                      <Typography variant="h6" color="primary.main">
-                        {tradingSession.betsPlaced}
-                      </Typography>
-                      <Typography variant="caption">Bets Placed</Typography>
-                    </Paper>
-                  </Grid>
-                  <Grid item xs={3}>
-                    <Paper sx={{ p: 1, textAlign: "center" }}>
-                      <Typography
-                        variant="h6"
-                        color={
-                          tradingSession.pnl >= 0
-                            ? "success.main"
-                            : "error.main"
-                        }
-                      >
-                        {formatCurrency(tradingSession.pnl)}
-                      </Typography>
-                      <Typography variant="caption">Session P&L</Typography>
-                    </Paper>
-                  </Grid>
-                  <Grid item xs={3}>
-                    <Paper sx={{ p: 1, textAlign: "center" }}>
-                      <Typography variant="h6">
-                        {formatPercentage(tradingSession.winRate)}
-                      </Typography>
-                      <Typography variant="caption">Win Rate</Typography>
-                    </Paper>
-                  </Grid>
-                  <Grid item xs={3}>
-                    <Paper sx={{ p: 1, textAlign: "center" }}>
-                      <Typography variant="h6">
-                        {tradingSession.sharpeRatio.toFixed(2)}
-                      </Typography>
-                      <Typography variant="caption">Sharpe</Typography>
-                    </Paper>
-                  </Grid>
-                </Grid>
-              )}
-
-              {/* Filters and Controls */}
-              <Grid container spacing={2} sx={{ mb: 2 }}>
-                <Grid item xs={2}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Sport</InputLabel>
-                    <Select
-                      value={filters.sport}
-                      onChange={(e) =>
-                        setFilters((prev) => ({
-                          ...prev,
-                          sport: e.target.value,
-                        }))
-                      }
-                    >
-                      <MenuItem value="all">All Sports</MenuItem>
-                      <MenuItem value="Basketball">Basketball</MenuItem>
-                      <MenuItem value="Football">Football</MenuItem>
-                      <MenuItem value="Soccer">Soccer</MenuItem>
-                      <MenuItem value="Tennis">Tennis</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={2}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Market</InputLabel>
-                    <Select
-                      value={filters.market}
-                      onChange={(e) =>
-                        setFilters((prev) => ({
-                          ...prev,
-                          market: e.target.value,
-                        }))
-                      }
-                    >
-                      <MenuItem value="all">All Markets</MenuItem>
-                      <MenuItem value="Player Points">Player Points</MenuItem>
-                      <MenuItem value="Spread">Spread</MenuItem>
-                      <MenuItem value="Match Result">Match Result</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={2}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Min Edge %"
-                    type="number"
-                    value={filters.minEdge * 100}
-                    onChange={(e) =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        minEdge: Number(e.target.value) / 100,
-                      }))
-                    }
-                    inputProps={{ min: 0, max: 50, step: 1 }}
-                  />
-                </Grid>
-                <Grid item xs={2}>
-                  <TextField
-                    fullWidth
-                    size="small"
-                    label="Min Confidence %"
-                    type="number"
-                    value={filters.minConfidence * 100}
-                    onChange={(e) =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        minConfidence: Number(e.target.value) / 100,
-                      }))
-                    }
-                    inputProps={{ min: 0, max: 100, step: 5 }}
-                  />
-                </Grid>
-                <Grid item xs={2}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={showOnlyEdge}
-                        onChange={(e) => setShowOnlyEdge(e.target.checked)}
-                      />
-                    }
-                    label="Edge Only"
-                  />
-                </Grid>
-                <Grid item xs={2}>
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={riskManagement}
-                        onChange={(e) => setRiskManagement(e.target.checked)}
-                      />
-                    }
-                    label="Risk Mgmt"
-                  />
-                </Grid>
-              </Grid>
-
-              {/* Opportunities Table */}
-              <TableContainer component={Paper} sx={{ maxHeight: 600 }}>
-                <Table stickyHeader size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Event</TableCell>
-                      <TableCell>Market</TableCell>
-                      <TableCell>Odds</TableCell>
-                      <TableCell>Edge</TableCell>
-                      <TableCell>Confidence</TableCell>
-                      <TableCell>EV</TableCell>
-                      <TableCell>Kelly</TableCell>
-                      <TableCell>Risk</TableCell>
-                      <TableCell>Volume</TableCell>
-                      <TableCell>Expiry</TableCell>
-                      <TableCell>Actions</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {filteredOpportunities.map((opportunity) => (
-                      <TableRow
-                        key={opportunity.id}
-                        sx={{
-                          "&:hover": { backgroundColor: "action.hover" },
-                          backgroundColor:
-                            opportunity.prediction.edge > 0.1
-                              ? "success.light"
-                              : "inherit",
-                          opacity: opportunity.prediction.edge > 0.1 ? 1 : 0.8,
-                        }}
-                      >
-                        <TableCell>
-                          <Box>
-                            <Typography variant="body2" fontWeight="bold">
-                              {opportunity.event}
-                            </Typography>
-                            <Typography variant="caption" color="textSecondary">
-                              {opportunity.sport} • {opportunity.league}
-                            </Typography>
-                            <Box display="flex" gap={0.5} mt={0.5}>
-                              {opportunity.tags.map((tag) => (
-                                <Chip
-                                  key={tag}
-                                  label={tag}
-                                  size="small"
-                                  variant="outlined"
-                                />
-                              ))}
-                            </Box>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {opportunity.market}
-                          </Typography>
-                          <Typography variant="caption" color="textSecondary">
-                            {opportunity.selection}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2" fontWeight="bold">
-                            {formatOdds(opportunity.odds)}
-                          </Typography>
-                          <Typography variant="caption" color="textSecondary">
-                            {formatPercentage(opportunity.impliedProbability)}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={formatPercentage(
-                              opportunity.prediction.edge,
-                            )}
-                            color={
-                              opportunity.prediction.edge > 0.1
-                                ? "success"
-                                : opportunity.prediction.edge > 0.05
-                                  ? "warning"
-                                  : "default"
-                            }
-                            size="small"
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <LinearProgress
-                              variant="determinate"
-                              value={opportunity.prediction.confidence * 100}
-                              sx={{ width: 40, height: 6 }}
-                              color={
-                                opportunity.prediction.confidence > 0.8
-                                  ? "success"
-                                  : opportunity.prediction.confidence > 0.6
-                                    ? "warning"
-                                    : "error"
-                              }
-                            />
-                            <Typography variant="caption">
-                              {formatPercentage(
-                                opportunity.prediction.confidence,
-                              )}
-                            </Typography>
-                          </Box>
-                        </TableCell>
-                        <TableCell>
-                          <Typography
-                            variant="body2"
-                            color={
-                              opportunity.prediction.expectedValue > 0
-                                ? "success.main"
-                                : "error.main"
-                            }
-                            fontWeight="bold"
-                          >
-                            {formatCurrency(
-                              opportunity.prediction.expectedValue,
-                            )}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {formatPercentage(
-                              opportunity.prediction.kellyFraction,
-                            )}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={RISK_LEVELS[opportunity.riskLevel].label}
-                            size="small"
-                            sx={{
-                              backgroundColor:
-                                RISK_LEVELS[opportunity.riskLevel].color,
-                              color: "white",
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="caption">
-                            {formatCurrency(opportunity.volume)}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="caption">
-                            {Math.floor(opportunity.timeToExpiry / 60000)}m
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <ButtonGroup size="small">
-                            <Button
-                              onClick={() =>
-                                handleAddToBetSlip(
-                                  opportunity,
-                                  Math.min(
-                                    maxStakePerBet,
-                                    totalBankroll *
-                                      opportunity.prediction.kellyFraction,
-                                  ),
-                                )
-                              }
-                              startIcon={<Add />}
-                              disabled={!isTrading}
-                            >
-                              Bet
-                            </Button>
-                            <Button
-                              onClick={() =>
-                                setSelectedOpportunity(opportunity)
-                              }
-                              startIcon={<Visibility />}
-                            >
-                              View
-                            </Button>
-                          </ButtonGroup>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Bet Slip and Portfolio */}
-        <Grid item xs={12} md={4}>
-          {/* Bet Slip */}
-          <Card sx={{ mb: 2 }}>
-            <CardContent>
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-                mb={2}
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const outcome = selectedBet.odds[0]?.outcomes[0];
+                  if (outcome) {
+                    placeBet(
+                      selectedBet,
+                      outcome.name,
+                      outcome.odds,
+                      stakeAmount,
+                    );
+                  }
+                }}
+                disabled={stakeAmount <= 0 || stakeAmount > bankroll}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Typography
-                  variant="h6"
-                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                >
-                  <ShoppingCart />
-                  Bet Slip
-                  <Badge badgeContent={betSlip.length} color="primary" />
-                </Typography>
-                <IconButton
-                  onClick={() => setBetSlip([])}
-                  disabled={betSlip.length === 0}
-                >
-                  <Delete />
-                </IconButton>
-              </Box>
-
-              <Stack spacing={2} sx={{ maxHeight: 400, overflow: "auto" }}>
-                {betSlip.map((item) => {
-                  const opportunity = opportunities.find(
-                    (opp) => opp.id === item.opportunityId,
-                  );
-                  if (!opportunity) return null;
-
-                  return (
-                    <Paper key={item.opportunityId} sx={{ p: 2 }}>
-                      <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="center"
-                        mb={1}
-                      >
-                        <Typography variant="body2" fontWeight="bold">
-                          {opportunity.event}
-                        </Typography>
-                        <IconButton
-                          size="small"
-                          onClick={() =>
-                            handleRemoveFromBetSlip(item.opportunityId)
-                          }
-                        >
-                          <Remove />
-                        </IconButton>
-                      </Box>
-
-                      <Typography
-                        variant="caption"
-                        color="textSecondary"
-                        gutterBottom
-                      >
-                        {opportunity.selection} @ {formatOdds(item.odds)}
-                      </Typography>
-
-                      <Box display="flex" gap={1} alignItems="center" mt={1}>
-                        <TextField
-                          size="small"
-                          label="Stake"
-                          type="number"
-                          value={item.stake}
-                          onChange={(e) =>
-                            handleUpdateStake(
-                              item.opportunityId,
-                              Number(e.target.value),
-                            )
-                          }
-                          sx={{ flex: 1 }}
-                          inputProps={{ min: 1, max: maxStakePerBet }}
-                        />
-                        <IconButton
-                          size="small"
-                          onClick={() => {
-                            setBetSlip((prev) =>
-                              prev.map((bet) =>
-                                bet.opportunityId === item.opportunityId
-                                  ? { ...bet, isLocked: !bet.isLocked }
-                                  : bet,
-                              ),
-                            );
-                          }}
-                        >
-                          {item.isLocked ? <Lock /> : <LockOpen />}
-                        </IconButton>
-                      </Box>
-
-                      <Box display="flex" justifyContent="space-between" mt={1}>
-                        <Typography variant="caption">
-                          Potential Payout:
-                        </Typography>
-                        <Typography variant="caption" fontWeight="bold">
-                          {formatCurrency(item.potentialPayout)}
-                        </Typography>
-                      </Box>
-                    </Paper>
-                  );
-                })}
-              </Stack>
-
-              {betSlip.length > 0 && (
-                <Box mt={2}>
-                  <Divider sx={{ mb: 2 }} />
-                  <Stack spacing={1}>
-                    <Box display="flex" justifyContent="space-between">
-                      <Typography variant="body2">Total Stake:</Typography>
-                      <Typography variant="body2" fontWeight="bold">
-                        {formatCurrency(betSlipTotals.totalStake)}
-                      </Typography>
-                    </Box>
-                    <Box display="flex" justifyContent="space-between">
-                      <Typography variant="body2">Potential Payout:</Typography>
-                      <Typography variant="body2" fontWeight="bold">
-                        {formatCurrency(betSlipTotals.totalPayout)}
-                      </Typography>
-                    </Box>
-                    <Box display="flex" justifyContent="space-between">
-                      <Typography variant="body2">Potential Profit:</Typography>
-                      <Typography
-                        variant="body2"
-                        fontWeight="bold"
-                        color={
-                          betSlipTotals.totalProfit > 0
-                            ? "success.main"
-                            : "error.main"
-                        }
-                      >
-                        {formatCurrency(betSlipTotals.totalProfit)}
-                      </Typography>
-                    </Box>
-
-                    <Button
-                      variant="contained"
-                      fullWidth
-                      onClick={handlePlaceBets}
-                      disabled={!isTrading || betSlip.length === 0 || isLoading}
-                      sx={{ mt: 2 }}
-                    >
-                      {isLoading ? (
-                        <LinearProgress sx={{ width: "100%" }} />
-                      ) : (
-                        "Place Bets"
-                      )}
-                    </Button>
-                  </Stack>
-                </Box>
-              )}
-
-              {betSlip.length === 0 && (
-                <Alert severity="info">
-                  Add opportunities to your bet slip to start trading.
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Portfolio Overview */}
-          <Card>
-            <CardContent>
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-                mb={2}
-              >
-                <Typography
-                  variant="h6"
-                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                >
-                  <PieChart />
-                  Portfolio
-                </Typography>
-                <IconButton onClick={() => setShowPortfolioDialog(true)}>
-                  <Visibility />
-                </IconButton>
-              </Box>
-
-              <Stack spacing={2}>
-                <Box>
-                  <Typography variant="caption">Total Exposure</Typography>
-                  <Typography variant="h5" color="primary.main">
-                    {formatCurrency(portfolioMetrics.totalExposure)}
-                  </Typography>
-                </Box>
-
-                <Box>
-                  <Typography variant="caption">Total P&L</Typography>
-                  <Typography
-                    variant="h5"
-                    color={
-                      portfolioMetrics.totalPnL >= 0
-                        ? "success.main"
-                        : "error.main"
-                    }
-                  >
-                    {formatCurrency(portfolioMetrics.totalPnL)}
-                  </Typography>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    {portfolioMetrics.totalPnL >= 0 ? (
-                      <TrendingUp color="success" fontSize="small" />
-                    ) : (
-                      <TrendingDown color="error" fontSize="small" />
-                    )}
-                    <Typography variant="caption">
-                      {formatPercentage(
-                        portfolioMetrics.totalPnL /
-                          portfolioMetrics.totalExposure,
-                      )}
-                    </Typography>
-                  </Box>
-                </Box>
-
-                <Divider />
-
-                <Stack spacing={1}>
-                  {portfolio.map((position) => (
-                    <Box key={position.id}>
-                      <Box
-                        display="flex"
-                        justifyContent="space-between"
-                        alignItems="center"
-                      >
-                        <Typography variant="body2">
-                          {position.sport}
-                        </Typography>
-                        <Typography
-                          variant="body2"
-                          color={
-                            position.pnl >= 0 ? "success.main" : "error.main"
-                          }
-                          fontWeight="bold"
-                        >
-                          {formatCurrency(position.pnl)}
-                        </Typography>
-                      </Box>
-                      <Typography variant="caption" color="textSecondary">
-                        {position.positions} positions •{" "}
-                        {formatCurrency(position.exposure)} exposure
-                      </Typography>
-                    </Box>
-                  ))}
-                </Stack>
-
-                <Alert severity="warning" icon={<Warning />}>
-                  <Typography variant="caption">
-                    VaR (95%):{" "}
-                    {formatCurrency(Math.abs(portfolioMetrics.totalVar))}
-                  </Typography>
-                </Alert>
-              </Stack>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-    </motion.div>
+                Place Bet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

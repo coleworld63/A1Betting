@@ -1,1555 +1,579 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useState, useEffect } from "react";
 import {
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Box,
-  Grid,
-  Chip,
-  Alert,
-  LinearProgress,
-  Tooltip,
-  IconButton,
-  Divider,
-  Paper,
-  Stack,
-  Switch,
-  FormControlLabel,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Tab,
-  Tabs,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  CircularProgress,
-  Avatar,
-  Badge,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Slider,
-  Stepper,
-  Step,
-  StepLabel,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  ListItemSecondaryAction,
-} from "@mui/material";
-import {
-  Psychology,
-  ModelTraining,
-  Analytics,
-  Speed,
-  TrendingUp,
-  TrendingDown,
-  Assessment,
+  Brain,
+  Play,
+  Pause,
   Settings,
-  PlayArrow,
-  Stop,
-  Refresh,
-  Download,
-  Upload,
-  ExpandMore,
-  Add,
-  Edit,
-  Delete,
-  Visibility,
-  BarChart,
-  Timeline,
-  Memory,
-  CloudDownload,
-  CloudUpload,
-  BugReport,
-  Tune,
-  AutoAwesome,
-  Science,
-  PrecisionManufacturing,
-  Insights,
-  CompareArrows,
-  Schedule,
+  TrendingUp,
+  Target,
+  Zap,
+  AlertCircle,
   CheckCircle,
-  Error,
-  Warning,
-  Info,
-} from "@mui/icons-material";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  Legend,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  ScatterChart,
-  Scatter,
-  BarChart as RechartsBarChart,
-  Bar,
-  ComposedChart,
-} from "recharts";
-import {
-  formatCurrency,
-  formatPercentage,
-  formatDateTime,
-} from "../../utils/formatters";
+  Clock,
+  Download,
+  RefreshCw,
+  BarChart3,
+  Activity,
+} from "lucide-react";
+import { mlEngine } from "../../services/ml/UnifiedMLEngine";
+import { useUnifiedStore } from "../../store/unified/UnifiedStoreManager";
+import type {
+  MLModelConfig,
+  ModelPerformanceMetrics,
+} from "../../services/ml/UnifiedMLEngine";
 
-interface MLModel {
-  id: string;
-  name: string;
-  type:
-    | "ensemble"
-    | "neural_network"
-    | "random_forest"
-    | "xgboost"
-    | "lstm"
-    | "transformer";
-  status: "training" | "ready" | "error" | "deprecated";
-  accuracy: number;
-  precision: number;
-  recall: number;
-  f1Score: number;
-  trainingProgress: number;
-  lastTrained: Date;
-  version: string;
-  features: string[];
-  hyperparameters: { [key: string]: any };
-  metrics: {
-    loss: number;
-    valLoss: number;
-    trainingTime: number;
-    memoryUsage: number;
-    predictions: number;
-    profitContribution: number;
-  };
-  deployment: {
-    isDeployed: boolean;
-    environment: "development" | "staging" | "production";
-    instances: number;
-    load: number;
-  };
+interface ModelStatus {
+  model: MLModelConfig;
+  performance: ModelPerformanceMetrics | null;
+  isRetraining: boolean;
+  lastUpdate: Date;
+  health: "healthy" | "warning" | "error";
 }
 
-interface TrainingJob {
-  id: string;
-  modelId: string;
-  modelName: string;
-  status: "queued" | "running" | "completed" | "failed";
-  progress: number;
-  startTime: Date;
-  estimatedCompletion?: Date;
-  currentEpoch: number;
-  totalEpochs: number;
-  currentLoss: number;
-  bestLoss: number;
-  logs: string[];
-}
+const MLModelCenter: React.FC = () => {
+  const [modelStatuses, setModelStatuses] = useState<ModelStatus[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string | null>(null);
+  const [isRetrainingAll, setIsRetrainingAll] = useState(false);
+  const [systemHealth, setSystemHealth] = useState<
+    "healthy" | "warning" | "error"
+  >("healthy");
 
-interface ModelComparison {
-  models: string[];
-  metrics: {
-    accuracy: number[];
-    precision: number[];
-    recall: number[];
-    f1Score: number[];
-    profitability: number[];
-  };
-  timeRange: string;
-}
+  const { actions } = useUnifiedStore();
 
-const MODEL_TYPES = [
-  { value: "ensemble", label: "Ensemble Models", color: "#1976d2" },
-  { value: "neural_network", label: "Neural Networks", color: "#dc004e" },
-  { value: "random_forest", label: "Random Forest", color: "#2e7d32" },
-  { value: "xgboost", label: "XGBoost", color: "#ed6c02" },
-  { value: "lstm", label: "LSTM Networks", color: "#9c27b0" },
-  { value: "transformer", label: "Transformers", color: "#00acc1" },
-];
-
-const COLORS = {
-  primary: "#1976d2",
-  secondary: "#dc004e",
-  success: "#2e7d32",
-  warning: "#ed6c02",
-  error: "#d32f2f",
-  info: "#0288d1",
-};
-
-export const MLModelCenter: React.FC = () => {
-  // State Management
-  const [activeTab, setActiveTab] = useState(0);
-  const [models, setModels] = useState<MLModel[]>([]);
-  const [trainingJobs, setTrainingJobs] = useState<TrainingJob[]>([]);
-  const [selectedModels, setSelectedModels] = useState<string[]>([]);
-  const [modelComparison, setModelComparison] =
-    useState<ModelComparison | null>(null);
-  const [showTrainingDialog, setShowTrainingDialog] = useState(false);
-  const [showDeployDialog, setShowDeployDialog] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<MLModel | null>(null);
-
-  // UI State
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const [filterType, setFilterType] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<"accuracy" | "profit" | "lastTrained">(
-    "accuracy",
-  );
-
-  // Load Models Data
-  const loadModels = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      // Simulate loading ML models
-      const mockModels: MLModel[] = [
-        {
-          id: "ensemble-v2.1",
-          name: "Advanced Ensemble",
-          type: "ensemble",
-          status: "ready",
-          accuracy: 0.742,
-          precision: 0.719,
-          recall: 0.756,
-          f1Score: 0.737,
-          trainingProgress: 100,
-          lastTrained: new Date(Date.now() - 3600000),
-          version: "2.1.0",
-          features: [
-            "odds_movement",
-            "volume",
-            "sentiment",
-            "weather",
-            "injuries",
-            "historical",
-          ],
-          hyperparameters: {
-            n_estimators: 500,
-            learning_rate: 0.01,
-            max_depth: 8,
-            subsample: 0.8,
-          },
-          metrics: {
-            loss: 0.342,
-            valLoss: 0.367,
-            trainingTime: 1847,
-            memoryUsage: 2.4,
-            predictions: 15647,
-            profitContribution: 8432.5,
-          },
-          deployment: {
-            isDeployed: true,
-            environment: "production",
-            instances: 3,
-            load: 0.67,
-          },
-        },
-        {
-          id: "lstm-v1.3",
-          name: "LSTM Predictor",
-          type: "lstm",
-          status: "training",
-          accuracy: 0.689,
-          precision: 0.671,
-          recall: 0.698,
-          f1Score: 0.684,
-          trainingProgress: 73,
-          lastTrained: new Date(Date.now() - 7200000),
-          version: "1.3.0",
-          features: [
-            "time_series",
-            "odds_sequences",
-            "volume_patterns",
-            "market_cycles",
-          ],
-          hyperparameters: {
-            units: 128,
-            dropout: 0.2,
-            sequence_length: 50,
-            batch_size: 32,
-          },
-          metrics: {
-            loss: 0.456,
-            valLoss: 0.489,
-            trainingTime: 3241,
-            memoryUsage: 4.1,
-            predictions: 9832,
-            profitContribution: 4567.2,
-          },
-          deployment: {
-            isDeployed: false,
-            environment: "staging",
-            instances: 1,
-            load: 0.23,
-          },
-        },
-        {
-          id: "xgb-v3.0",
-          name: "XGBoost Champion",
-          type: "xgboost",
-          status: "ready",
-          accuracy: 0.703,
-          precision: 0.687,
-          recall: 0.721,
-          f1Score: 0.704,
-          trainingProgress: 100,
-          lastTrained: new Date(Date.now() - 14400000),
-          version: "3.0.1",
-          features: [
-            "player_stats",
-            "team_metrics",
-            "matchup_history",
-            "venue_effects",
-          ],
-          hyperparameters: {
-            n_estimators: 1000,
-            max_depth: 6,
-            learning_rate: 0.05,
-            subsample: 0.9,
-          },
-          metrics: {
-            loss: 0.389,
-            valLoss: 0.412,
-            trainingTime: 892,
-            memoryUsage: 1.8,
-            predictions: 12456,
-            profitContribution: 6789.3,
-          },
-          deployment: {
-            isDeployed: true,
-            environment: "production",
-            instances: 2,
-            load: 0.45,
-          },
-        },
-        {
-          id: "transformer-v1.0",
-          name: "Transformer Alpha",
-          type: "transformer",
-          status: "error",
-          accuracy: 0.654,
-          precision: 0.641,
-          recall: 0.669,
-          f1Score: 0.655,
-          trainingProgress: 0,
-          lastTrained: new Date(Date.now() - 86400000),
-          version: "1.0.0",
-          features: [
-            "text_analysis",
-            "news_sentiment",
-            "social_media",
-            "expert_opinions",
-          ],
-          hyperparameters: {
-            d_model: 512,
-            n_heads: 8,
-            n_layers: 6,
-            dropout: 0.1,
-          },
-          metrics: {
-            loss: 0.567,
-            valLoss: 0.634,
-            trainingTime: 0,
-            memoryUsage: 0,
-            predictions: 0,
-            profitContribution: 0,
-          },
-          deployment: {
-            isDeployed: false,
-            environment: "development",
-            instances: 0,
-            load: 0,
-          },
-        },
-      ];
-
-      const mockTrainingJobs: TrainingJob[] = [
-        {
-          id: "job-001",
-          modelId: "lstm-v1.3",
-          modelName: "LSTM Predictor",
-          status: "running",
-          progress: 73,
-          startTime: new Date(Date.now() - 3600000),
-          estimatedCompletion: new Date(Date.now() + 1800000),
-          currentEpoch: 73,
-          totalEpochs: 100,
-          currentLoss: 0.456,
-          bestLoss: 0.423,
-          logs: [
-            "Epoch 73/100 - Loss: 0.456 - Val Loss: 0.489",
-            "Learning rate adjusted to 0.001",
-            "Early stopping patience: 7/10",
-            "Memory usage: 4.1 GB",
-          ],
-        },
-        {
-          id: "job-002",
-          modelId: "ensemble-v2.2",
-          modelName: "Ensemble v2.2",
-          status: "queued",
-          progress: 0,
-          startTime: new Date(Date.now() + 900000),
-          currentEpoch: 0,
-          totalEpochs: 50,
-          currentLoss: 0,
-          bestLoss: 0,
-          logs: ["Job queued for execution"],
-        },
-      ];
-
-      setModels(mockModels);
-      setTrainingJobs(mockTrainingJobs);
-    } catch (err) {
-      setError("Failed to load ML models");
-      console.error("Models loading error:", err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Load data on mount
   useEffect(() => {
-    loadModels();
-
-    if (autoRefresh) {
-      const interval = setInterval(loadModels, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [loadModels, autoRefresh]);
-
-  // Filtered and sorted models
-  const filteredModels = useMemo(() => {
-    let filtered = models;
-
-    if (filterType !== "all") {
-      filtered = filtered.filter((model) => model.type === filterType);
-    }
-
-    return filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "accuracy":
-          return b.accuracy - a.accuracy;
-        case "profit":
-          return b.metrics.profitContribution - a.metrics.profitContribution;
-        case "lastTrained":
-          return b.lastTrained.getTime() - a.lastTrained.getTime();
-        default:
-          return 0;
-      }
-    });
-  }, [models, filterType, sortBy]);
-
-  // Model performance comparison data
-  const comparisonData = useMemo(() => {
-    if (selectedModels.length === 0) return [];
-
-    const selectedModelData = models.filter((m) =>
-      selectedModels.includes(m.id),
-    );
-    return selectedModelData.map((model) => ({
-      name: model.name,
-      accuracy: model.accuracy * 100,
-      precision: model.precision * 100,
-      recall: model.recall * 100,
-      f1Score: model.f1Score * 100,
-      profit: model.metrics.profitContribution,
-    }));
-  }, [models, selectedModels]);
-
-  // Event Handlers
-  const handleStartTraining = useCallback(
-    async (modelId: string) => {
+    const loadModelStatuses = async () => {
       try {
-        // Simulate starting training
-        console.log("Starting training for model:", modelId);
-
-        // Update model status
-        setModels((prev) =>
-          prev.map((model) =>
-            model.id === modelId
-              ? { ...model, status: "training" as const, trainingProgress: 0 }
-              : model,
-          ),
+        const activeModels = mlEngine.getActiveModels();
+        const statuses: ModelStatus[] = await Promise.all(
+          activeModels.map(async (model) => {
+            const performance = mlEngine.getModelPerformance(model.name);
+            return {
+              model,
+              performance: performance || null,
+              isRetraining: false,
+              lastUpdate: new Date(model.lastTrained),
+              health:
+                performance?.accuracy && performance.accuracy > 0.7
+                  ? "healthy"
+                  : performance?.accuracy && performance.accuracy > 0.6
+                    ? "warning"
+                    : "error",
+            };
+          }),
         );
 
-        // Add training job
-        const newJob: TrainingJob = {
-          id: `job-${Date.now()}`,
-          modelId,
-          modelName: models.find((m) => m.id === modelId)?.name || "Unknown",
-          status: "running",
-          progress: 0,
-          startTime: new Date(),
-          estimatedCompletion: new Date(Date.now() + 7200000),
-          currentEpoch: 0,
-          totalEpochs: 100,
-          currentLoss: 0,
-          bestLoss: 0,
-          logs: ["Training started"],
-        };
+        setModelStatuses(statuses);
 
-        setTrainingJobs((prev) => [...prev, newJob]);
+        // Calculate system health
+        const healthyModels = statuses.filter(
+          (s) => s.health === "healthy",
+        ).length;
+        const totalModels = statuses.length;
+
+        if (healthyModels / totalModels >= 0.8) {
+          setSystemHealth("healthy");
+        } else if (healthyModels / totalModels >= 0.6) {
+          setSystemHealth("warning");
+        } else {
+          setSystemHealth("error");
+        }
       } catch (error) {
-        console.error("Failed to start training:", error);
+        console.error("Failed to load model statuses:", error);
+        actions.addToast({
+          type: "error",
+          title: "Model Loading Failed",
+          message: "Unable to load ML model statuses",
+        });
       }
-    },
-    [models],
-  );
+    };
 
-  const handleStopTraining = useCallback(async (jobId: string) => {
+    loadModelStatuses();
+    const interval = setInterval(loadModelStatuses, 30000); // Update every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [actions]);
+
+  const handleRetrain = async (modelName: string) => {
+    setModelStatuses((prev) =>
+      prev.map((status) =>
+        status.model.name === modelName
+          ? { ...status, isRetraining: true }
+          : status,
+      ),
+    );
+
     try {
-      // Simulate stopping training
-      setTrainingJobs((prev) =>
-        prev.map((job) =>
-          job.id === jobId
-            ? { ...job, status: "completed" as const, progress: 100 }
-            : job,
+      await mlEngine.retrain(modelName);
+
+      actions.addToast({
+        type: "success",
+        title: "Retraining Complete",
+        message: `Model ${modelName} has been successfully retrained`,
+      });
+
+      // Reload model status
+      const updatedModel = mlEngine
+        .getActiveModels()
+        .find((m) => m.name === modelName);
+      if (updatedModel) {
+        setModelStatuses((prev) =>
+          prev.map((status) =>
+            status.model.name === modelName
+              ? {
+                  ...status,
+                  model: updatedModel,
+                  isRetraining: false,
+                  lastUpdate: new Date(),
+                  health: "healthy",
+                }
+              : status,
+          ),
+        );
+      }
+    } catch (error) {
+      actions.addToast({
+        type: "error",
+        title: "Retraining Failed",
+        message: `Failed to retrain model ${modelName}`,
+      });
+
+      setModelStatuses((prev) =>
+        prev.map((status) =>
+          status.model.name === modelName
+            ? { ...status, isRetraining: false }
+            : status,
         ),
       );
-    } catch (error) {
-      console.error("Failed to stop training:", error);
     }
-  }, []);
+  };
 
-  const handleDeployModel = useCallback(
-    async (modelId: string, environment: "staging" | "production") => {
-      try {
-        // Simulate model deployment
-        setModels((prev) =>
-          prev.map((model) =>
-            model.id === modelId
-              ? {
-                  ...model,
-                  deployment: {
-                    ...model.deployment,
-                    isDeployed: true,
-                    environment,
-                    instances: environment === "production" ? 3 : 1,
-                  },
-                }
-              : model,
-          ),
-        );
-        setShowDeployDialog(false);
-      } catch (error) {
-        console.error("Failed to deploy model:", error);
-      }
-    },
-    [],
+  const handleRetrainAll = async () => {
+    setIsRetrainingAll(true);
+    setModelStatuses((prev) =>
+      prev.map((status) => ({ ...status, isRetraining: true })),
+    );
+
+    try {
+      await mlEngine.retrain(); // Retrain all models
+
+      actions.addToast({
+        type: "success",
+        title: "All Models Retrained",
+        message: "All ML models have been successfully retrained",
+      });
+
+      // Reload all model statuses
+      const activeModels = mlEngine.getActiveModels();
+      setModelStatuses((prev) =>
+        prev.map((status, index) => ({
+          ...status,
+          model: activeModels[index] || status.model,
+          isRetraining: false,
+          lastUpdate: new Date(),
+          health: "healthy",
+        })),
+      );
+    } catch (error) {
+      actions.addToast({
+        type: "error",
+        title: "Bulk Retraining Failed",
+        message: "Failed to retrain all models",
+      });
+
+      setModelStatuses((prev) =>
+        prev.map((status) => ({ ...status, isRetraining: false })),
+      );
+    } finally {
+      setIsRetrainingAll(false);
+    }
+  };
+
+  const toggleModelStatus = (modelName: string) => {
+    setModelStatuses((prev) =>
+      prev.map((status) =>
+        status.model.name === modelName
+          ? {
+              ...status,
+              model: { ...status.model, isActive: !status.model.isActive },
+            }
+          : status,
+      ),
+    );
+
+    actions.addToast({
+      type: "info",
+      title: "Model Status Updated",
+      message: `Model ${modelName} ${modelStatuses.find((s) => s.model.name === modelName)?.model.isActive ? "deactivated" : "activated"}`,
+    });
+  };
+
+  const getHealthColor = (health: string) => {
+    switch (health) {
+      case "healthy":
+        return "text-green-600 bg-green-100";
+      case "warning":
+        return "text-yellow-600 bg-yellow-100";
+      case "error":
+        return "text-red-600 bg-red-100";
+      default:
+        return "text-gray-600 bg-gray-100";
+    }
+  };
+
+  const getHealthIcon = (health: string) => {
+    switch (health) {
+      case "healthy":
+        return <CheckCircle className="w-4 h-4" />;
+      case "warning":
+        return <AlertCircle className="w-4 h-4" />;
+      case "error":
+        return <AlertCircle className="w-4 h-4" />;
+      default:
+        return <Activity className="w-4 h-4" />;
+    }
+  };
+
+  const ModelCard: React.FC<{ status: ModelStatus }> = ({ status }) => (
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-3">
+          <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+            <Brain className="w-5 h-5 text-blue-600" />
+          </div>
+          <div>
+            <h3 className="font-semibold text-gray-900 dark:text-white">
+              {status.model.name}
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {status.model.type.toUpperCase()} • v{status.model.version}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <span
+            className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getHealthColor(status.health)}`}
+          >
+            {getHealthIcon(status.health)}
+            <span className="ml-1">{status.health.toUpperCase()}</span>
+          </span>
+
+          <button
+            onClick={() => toggleModelStatus(status.model.name)}
+            disabled={status.isRetraining}
+            className={`p-2 rounded-lg transition-colors ${
+              status.model.isActive
+                ? "bg-green-100 text-green-600 hover:bg-green-200"
+                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+            title={
+              status.model.isActive ? "Deactivate Model" : "Activate Model"
+            }
+          >
+            {status.model.isActive ? (
+              <Play className="w-4 h-4" />
+            ) : (
+              <Pause className="w-4 h-4" />
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Performance Metrics */}
+      {status.performance && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+          <div className="text-center">
+            <div className="text-lg font-bold text-gray-900 dark:text-white">
+              {(status.performance.accuracy * 100).toFixed(1)}%
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">
+              Accuracy
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-lg font-bold text-gray-900 dark:text-white">
+              {(status.performance.precision * 100).toFixed(1)}%
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">
+              Precision
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-lg font-bold text-gray-900 dark:text-white">
+              {status.performance.totalPredictions}
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">
+              Predictions
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-lg font-bold text-green-600">
+              {(status.performance.profitability * 100).toFixed(1)}%
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">
+              Profit
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Model Weight */}
+      <div className="mb-4">
+        <div className="flex justify-between text-sm mb-1">
+          <span className="text-gray-600 dark:text-gray-400">
+            Ensemble Weight
+          </span>
+          <span className="font-medium text-gray-900 dark:text-white">
+            {(status.model.weight * 100).toFixed(0)}%
+          </span>
+        </div>
+        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+          <div
+            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+            style={{ width: `${status.model.weight * 100}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Last Update */}
+      <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-4">
+        <div className="flex items-center space-x-1">
+          <Clock className="w-4 h-4" />
+          <span>Last trained: {status.lastUpdate.toLocaleDateString()}</span>
+        </div>
+        <span>{status.model.features.length} features</span>
+      </div>
+
+      {/* Actions */}
+      <div className="flex space-x-2">
+        <button
+          onClick={() => handleRetrain(status.model.name)}
+          disabled={status.isRetraining || isRetrainingAll}
+          className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
+        >
+          {status.isRetraining ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+              <span>Training...</span>
+            </>
+          ) : (
+            <>
+              <RefreshCw className="w-4 h-4" />
+              <span>Retrain</span>
+            </>
+          )}
+        </button>
+
+        <button
+          onClick={() => setSelectedModel(status.model.name)}
+          className="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        >
+          <Settings className="w-4 h-4" />
+        </button>
+
+        <button
+          className="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+          title="Download Model"
+        >
+          <Download className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
   );
 
-  const handleCompareModels = useCallback(() => {
-    if (selectedModels.length < 2) return;
-
-    const comparison: ModelComparison = {
-      models: selectedModels,
-      metrics: {
-        accuracy: selectedModels.map(
-          (id) => models.find((m) => m.id === id)?.accuracy || 0,
-        ),
-        precision: selectedModels.map(
-          (id) => models.find((m) => m.id === id)?.precision || 0,
-        ),
-        recall: selectedModels.map(
-          (id) => models.find((m) => m.id === id)?.recall || 0,
-        ),
-        f1Score: selectedModels.map(
-          (id) => models.find((m) => m.id === id)?.f1Score || 0,
-        ),
-        profitability: selectedModels.map(
-          (id) =>
-            models.find((m) => m.id === id)?.metrics.profitContribution || 0,
-        ),
-      },
-      timeRange: "30d",
-    };
-
-    setModelComparison(comparison);
-  }, [selectedModels, models]);
-
-  const exportModelData = useCallback(() => {
-    const exportData = {
-      timestamp: new Date().toISOString(),
-      models: filteredModels,
-      trainingJobs,
-      comparison: modelComparison,
-      summary: {
-        totalModels: models.length,
-        deployedModels: models.filter((m) => m.deployment.isDeployed).length,
-        activeTrainingJobs: trainingJobs.filter((j) => j.status === "running")
-          .length,
-        totalProfitContribution: models.reduce(
-          (sum, m) => sum + m.metrics.profitContribution,
-          0,
-        ),
-      },
-    };
-
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `ml-models-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [filteredModels, trainingJobs, modelComparison, models]);
-
-  if (isLoading) {
-    return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        height={400}
-      >
-        <CircularProgress size={60} />
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <Alert
-        severity="error"
-        action={
-          <Button color="inherit" size="small" onClick={loadModels}>
-            Retry
-          </Button>
-        }
-      >
-        {error}
-      </Alert>
-    );
-  }
-
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="w-full"
-    >
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Box
-            display="flex"
-            justifyContent="space-between"
-            alignItems="center"
-            mb={2}
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            ML Model Center
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Manage and monitor your machine learning models
+          </p>
+        </div>
+
+        <div className="flex items-center space-x-3">
+          <div
+            className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getHealthColor(systemHealth)}`}
           >
-            <Typography
-              variant="h5"
-              component="h2"
-              sx={{ display: "flex", alignItems: "center", gap: 1 }}
-            >
-              <Psychology />
-              ML Model Center
-              <Badge
-                badgeContent={
-                  models.filter((m) => m.deployment.isDeployed).length
-                }
-                color="success"
-              >
-                <PrecisionManufacturing />
-              </Badge>
-            </Typography>
-            <Box display="flex" gap={1} alignItems="center">
-              <FormControl size="small" sx={{ minWidth: 120 }}>
-                <InputLabel>Model Type</InputLabel>
-                <Select
-                  value={filterType}
-                  onChange={(e) => setFilterType(e.target.value)}
-                >
-                  <MenuItem value="all">All Types</MenuItem>
-                  {MODEL_TYPES.map((type) => (
-                    <MenuItem key={type.value} value={type.value}>
-                      {type.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <FormControl size="small" sx={{ minWidth: 120 }}>
-                <InputLabel>Sort By</InputLabel>
-                <Select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                >
-                  <MenuItem value="accuracy">Accuracy</MenuItem>
-                  <MenuItem value="profit">Profit</MenuItem>
-                  <MenuItem value="lastTrained">Last Trained</MenuItem>
-                </Select>
-              </FormControl>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={autoRefresh}
-                    onChange={(e) => setAutoRefresh(e.target.checked)}
-                  />
-                }
-                label="Auto Refresh"
-              />
-              <IconButton onClick={loadModels}>
-                <Refresh />
-              </IconButton>
-              <IconButton onClick={exportModelData}>
-                <Download />
-              </IconButton>
-            </Box>
-          </Box>
+            {getHealthIcon(systemHealth)}
+            <span className="ml-1">System {systemHealth.toUpperCase()}</span>
+          </div>
 
-          {/* Summary Cards */}
-          <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid item xs={12} sm={6} md={3}>
-              <Paper sx={{ p: 2, textAlign: "center" }}>
-                <Typography variant="h4" color="primary.main">
-                  {models.length}
-                </Typography>
-                <Typography variant="caption" color="textSecondary">
-                  Total Models
-                </Typography>
-                <Box mt={1}>
-                  <Chip
-                    label={`${models.filter((m) => m.deployment.isDeployed).length} deployed`}
-                    color="success"
-                    size="small"
-                  />
-                </Box>
-              </Paper>
-            </Grid>
+          <button
+            onClick={handleRetrainAll}
+            disabled={isRetrainingAll}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+          >
+            {isRetrainingAll ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                <span>Retraining All...</span>
+              </>
+            ) : (
+              <>
+                <Zap className="w-4 h-4" />
+                <span>Retrain All</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
 
-            <Grid item xs={12} sm={6} md={3}>
-              <Paper sx={{ p: 2, textAlign: "center" }}>
-                <Typography variant="h4" color="success.main">
-                  {trainingJobs.filter((j) => j.status === "running").length}
-                </Typography>
-                <Typography variant="caption" color="textSecondary">
-                  Active Training
-                </Typography>
-                <Box mt={1}>
-                  <Chip
-                    label={`${trainingJobs.filter((j) => j.status === "queued").length} queued`}
-                    color="warning"
-                    size="small"
-                  />
-                </Box>
-              </Paper>
-            </Grid>
+      {/* System Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+              <Brain className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                {modelStatuses.length}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Total Models
+              </div>
+            </div>
+          </div>
+        </div>
 
-            <Grid item xs={12} sm={6} md={3}>
-              <Paper sx={{ p: 2, textAlign: "center" }}>
-                <Typography variant="h4" color="info.main">
-                  {(
-                    (models.reduce((sum, m) => sum + m.accuracy, 0) /
-                      models.length) *
-                    100
-                  ).toFixed(1)}
-                  %
-                </Typography>
-                <Typography variant="caption" color="textSecondary">
-                  Avg Accuracy
-                </Typography>
-                <Box mt={1}>
-                  <LinearProgress
-                    variant="determinate"
-                    value={
-                      (models.reduce((sum, m) => sum + m.accuracy, 0) /
-                        models.length) *
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
+              <CheckCircle className="w-5 h-5 text-green-600" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                {modelStatuses.filter((s) => s.model.isActive).length}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Active Models
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
+              <TrendingUp className="w-5 h-5 text-purple-600" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                {modelStatuses.length > 0
+                  ? (
+                      (modelStatuses.reduce(
+                        (acc, s) => acc + (s.performance?.accuracy || 0),
+                        0,
+                      ) /
+                        modelStatuses.length) *
                       100
-                    }
-                    color="info"
-                  />
-                </Box>
-              </Paper>
-            </Grid>
+                    ).toFixed(1)
+                  : 0}
+                %
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Avg Accuracy
+              </div>
+            </div>
+          </div>
+        </div>
 
-            <Grid item xs={12} sm={6} md={3}>
-              <Paper sx={{ p: 2, textAlign: "center" }}>
-                <Typography variant="h4" color="secondary.main">
-                  {formatCurrency(
-                    models.reduce(
-                      (sum, m) => sum + m.metrics.profitContribution,
-                      0,
-                    ),
-                  )}
-                </Typography>
-                <Typography variant="caption" color="textSecondary">
-                  Total Profit
-                </Typography>
-                <Box mt={1}>
-                  <TrendingUp color="success" fontSize="small" />
-                </Box>
-              </Paper>
-            </Grid>
-          </Grid>
+        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-yellow-100 dark:bg-yellow-900/20 rounded-lg">
+              <Target className="w-5 h-5 text-yellow-600" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-white">
+                {modelStatuses.reduce(
+                  (acc, s) => acc + (s.performance?.totalPredictions || 0),
+                  0,
+                )}
+              </div>
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Total Predictions
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-          {/* Tab Navigation */}
-          <Tabs
-            value={activeTab}
-            onChange={(_, newValue) => setActiveTab(newValue)}
-            sx={{ borderBottom: 1, borderColor: "divider", mb: 2 }}
-          >
-            <Tab label="Models Overview" icon={<Assessment />} />
-            <Tab label="Training Jobs" icon={<ModelTraining />} />
-            <Tab label="Model Comparison" icon={<CompareArrows />} />
-            <Tab label="Deployment" icon={<CloudUpload />} />
-            <Tab label="Performance" icon={<BarChart />} />
-          </Tabs>
+      {/* Model Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {modelStatuses.map((status, index) => (
+          <ModelCard key={index} status={status} />
+        ))}
+      </div>
 
-          {/* Models Overview Tab */}
-          {activeTab === 0 && (
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableCell padding="checkbox">
-                      <Chip
-                        label="Select"
-                        size="small"
-                        onClick={() => {
-                          if (selectedModels.length === models.length) {
-                            setSelectedModels([]);
-                          } else {
-                            setSelectedModels(models.map((m) => m.id));
-                          }
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell>Model</TableCell>
-                    <TableCell>Type</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Accuracy</TableCell>
-                    <TableCell>F1 Score</TableCell>
-                    <TableCell>Profit Contribution</TableCell>
-                    <TableCell>Last Trained</TableCell>
-                    <TableCell>Deployment</TableCell>
-                    <TableCell>Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredModels.map((model) => (
-                    <TableRow
-                      key={model.id}
-                      sx={{
-                        backgroundColor: selectedModels.includes(model.id)
-                          ? "action.selected"
-                          : "inherit",
-                        "&:hover": { backgroundColor: "action.hover" },
-                      }}
-                    >
-                      <TableCell padding="checkbox">
-                        <Switch
-                          checked={selectedModels.includes(model.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedModels((prev) => [...prev, model.id]);
-                            } else {
-                              setSelectedModels((prev) =>
-                                prev.filter((id) => id !== model.id),
-                              );
-                            }
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Box display="flex" alignItems="center" gap={1}>
-                          <Avatar sx={{ width: 32, height: 32, fontSize: 12 }}>
-                            {model.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")}
-                          </Avatar>
-                          <Box>
-                            <Typography variant="body2" fontWeight="bold">
-                              {model.name}
-                            </Typography>
-                            <Typography variant="caption" color="textSecondary">
-                              v{model.version}
-                            </Typography>
-                          </Box>
-                        </Box>
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={
-                            MODEL_TYPES.find((t) => t.value === model.type)
-                              ?.label || model.type
-                          }
-                          size="small"
-                          sx={{
-                            backgroundColor:
-                              MODEL_TYPES.find((t) => t.value === model.type)
-                                ?.color || "#gray",
-                            color: "white",
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={model.status}
-                          color={
-                            model.status === "ready"
-                              ? "success"
-                              : model.status === "training"
-                                ? "warning"
-                                : model.status === "error"
-                                  ? "error"
-                                  : "default"
-                          }
-                          size="small"
-                          icon={
-                            model.status === "ready" ? (
-                              <CheckCircle />
-                            ) : model.status === "training" ? (
-                              <Schedule />
-                            ) : model.status === "error" ? (
-                              <Error />
-                            ) : (
-                              <Info />
-                            )
-                          }
-                        />
-                        {model.status === "training" && (
-                          <LinearProgress
-                            variant="determinate"
-                            value={model.trainingProgress}
-                            sx={{ mt: 1 }}
-                          />
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2" fontWeight="bold">
-                          {formatPercentage(model.accuracy)}
-                        </Typography>
-                        <Typography variant="caption" color="textSecondary">
-                          P: {formatPercentage(model.precision)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {model.f1Score.toFixed(3)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography
-                          variant="body2"
-                          color={
-                            model.metrics.profitContribution > 0
-                              ? "success.main"
-                              : "error.main"
-                          }
-                          fontWeight="bold"
-                        >
-                          {formatCurrency(model.metrics.profitContribution)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Typography variant="caption">
-                          {formatDateTime(model.lastTrained)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        {model.deployment.isDeployed ? (
-                          <Box>
-                            <Chip
-                              label={model.deployment.environment}
-                              color={
-                                model.deployment.environment === "production"
-                                  ? "success"
-                                  : "warning"
-                              }
-                              size="small"
-                            />
-                            <Typography variant="caption" display="block">
-                              {model.deployment.instances} instances
-                            </Typography>
-                          </Box>
-                        ) : (
-                          <Chip label="Not Deployed" size="small" />
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Box display="flex" gap={1}>
-                          <Tooltip title="View Details">
-                            <IconButton
-                              size="small"
-                              onClick={() => setSelectedModel(model)}
-                            >
-                              <Visibility />
-                            </IconButton>
-                          </Tooltip>
-                          {model.status === "ready" &&
-                            !model.deployment.isDeployed && (
-                              <Tooltip title="Deploy">
-                                <IconButton
-                                  size="small"
-                                  onClick={() => {
-                                    setSelectedModel(model);
-                                    setShowDeployDialog(true);
-                                  }}
-                                >
-                                  <CloudUpload />
-                                </IconButton>
-                              </Tooltip>
-                            )}
-                          {model.status === "ready" && (
-                            <Tooltip title="Retrain">
-                              <IconButton
-                                size="small"
-                                onClick={() => handleStartTraining(model.id)}
-                              >
-                                <ModelTraining />
-                              </IconButton>
-                            </Tooltip>
-                          )}
-                        </Box>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
-
-          {/* Training Jobs Tab */}
-          {activeTab === 1 && (
-            <Stack spacing={2}>
-              {trainingJobs.map((job) => (
-                <Paper key={job.id} sx={{ p: 2 }}>
-                  <Box
-                    display="flex"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    mb={2}
-                  >
-                    <Typography variant="h6">{job.modelName}</Typography>
-                    <Box display="flex" gap={1} alignItems="center">
-                      <Chip
-                        label={job.status}
-                        color={
-                          job.status === "completed"
-                            ? "success"
-                            : job.status === "running"
-                              ? "warning"
-                              : job.status === "failed"
-                                ? "error"
-                                : "default"
-                        }
-                        size="small"
-                      />
-                      {job.status === "running" && (
-                        <IconButton
-                          size="small"
-                          onClick={() => handleStopTraining(job.id)}
-                        >
-                          <Stop />
-                        </IconButton>
-                      )}
-                    </Box>
-                  </Box>
-
-                  {job.status === "running" && (
-                    <Box mb={2}>
-                      <Box display="flex" justifyContent="space-between" mb={1}>
-                        <Typography variant="body2">
-                          Epoch {job.currentEpoch} / {job.totalEpochs}
-                        </Typography>
-                        <Typography variant="body2">{job.progress}%</Typography>
-                      </Box>
-                      <LinearProgress
-                        variant="determinate"
-                        value={job.progress}
-                      />
-
-                      <Grid container spacing={2} sx={{ mt: 1 }}>
-                        <Grid item xs={6}>
-                          <Typography variant="caption">
-                            Current Loss
-                          </Typography>
-                          <Typography variant="body2">
-                            {job.currentLoss.toFixed(4)}
-                          </Typography>
-                        </Grid>
-                        <Grid item xs={6}>
-                          <Typography variant="caption">Best Loss</Typography>
-                          <Typography variant="body2">
-                            {job.bestLoss.toFixed(4)}
-                          </Typography>
-                        </Grid>
-                      </Grid>
-                    </Box>
-                  )}
-
-                  <Accordion>
-                    <AccordionSummary expandIcon={<ExpandMore />}>
-                      <Typography variant="subtitle2">Training Logs</Typography>
-                    </AccordionSummary>
-                    <AccordionDetails>
-                      <List dense>
-                        {job.logs.map((log, index) => (
-                          <ListItem key={index}>
-                            <ListItemText
-                              primary={log}
-                              sx={{
-                                fontFamily: "monospace",
-                                fontSize: "0.875rem",
-                              }}
-                            />
-                          </ListItem>
-                        ))}
-                      </List>
-                    </AccordionDetails>
-                  </Accordion>
-                </Paper>
-              ))}
-
-              {trainingJobs.length === 0 && (
-                <Alert severity="info">
-                  No training jobs currently running. Start training a model to
-                  see jobs here.
-                </Alert>
-              )}
-            </Stack>
-          )}
-
-          {/* Model Comparison Tab */}
-          {activeTab === 2 && (
-            <Box>
-              <Box
-                display="flex"
-                justifyContent="between"
-                alignItems="center"
-                mb={2}
+      {/* Model Details Modal */}
+      {selectedModel && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                Model Details: {selectedModel}
+              </h3>
+              <button
+                onClick={() => setSelectedModel(null)}
+                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
               >
-                <Typography variant="h6">Model Comparison</Typography>
-                <Button
-                  onClick={handleCompareModels}
-                  disabled={selectedModels.length < 2}
-                  startIcon={<CompareArrows />}
-                >
-                  Compare Selected ({selectedModels.length})
-                </Button>
-              </Box>
+                ×
+              </button>
+            </div>
 
-              {comparisonData.length > 0 ? (
-                <Grid container spacing={3}>
-                  <Grid item xs={12} md={8}>
-                    <Paper sx={{ p: 2 }}>
-                      <Typography variant="subtitle1" gutterBottom>
-                        Performance Metrics
-                      </Typography>
-                      <ResponsiveContainer width="100%" height={400}>
-                        <RadarChart
-                          data={[
-                            {
-                              metric: "Accuracy",
-                              ...comparisonData.reduce(
-                                (acc, model, idx) => ({
-                                  ...acc,
-                                  [model.name]: model.accuracy,
-                                }),
-                                {},
-                              ),
-                            },
-                            {
-                              metric: "Precision",
-                              ...comparisonData.reduce(
-                                (acc, model, idx) => ({
-                                  ...acc,
-                                  [model.name]: model.precision,
-                                }),
-                                {},
-                              ),
-                            },
-                            {
-                              metric: "Recall",
-                              ...comparisonData.reduce(
-                                (acc, model, idx) => ({
-                                  ...acc,
-                                  [model.name]: model.recall,
-                                }),
-                                {},
-                              ),
-                            },
-                            {
-                              metric: "F1 Score",
-                              ...comparisonData.reduce(
-                                (acc, model, idx) => ({
-                                  ...acc,
-                                  [model.name]: model.f1Score,
-                                }),
-                                {},
-                              ),
-                            },
-                          ]}
-                        >
-                          <PolarGrid />
-                          <PolarAngleAxis dataKey="metric" />
-                          <PolarRadiusAxis
-                            angle={90}
-                            domain={[0, 100]}
-                            tick={false}
-                          />
-                          {comparisonData.map((model, index) => (
-                            <Radar
-                              key={model.name}
-                              name={model.name}
-                              dataKey={model.name}
-                              stroke={`hsl(${index * 137.5}, 70%, 50%)`}
-                              fill={`hsl(${index * 137.5}, 70%, 50%)`}
-                              fillOpacity={0.2}
-                              strokeWidth={2}
-                            />
-                          ))}
-                          <Legend />
-                        </RadarChart>
-                      </ResponsiveContainer>
-                    </Paper>
-                  </Grid>
+            <div className="space-y-6">
+              {/* Model Configuration */}
+              <div>
+                <h4 className="font-medium text-gray-900 dark:text-white mb-3">
+                  Configuration
+                </h4>
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                  <pre className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">
+                    {JSON.stringify(
+                      modelStatuses.find((s) => s.model.name === selectedModel)
+                        ?.model.hyperparameters,
+                      null,
+                      2,
+                    )}
+                  </pre>
+                </div>
+              </div>
 
-                  <Grid item xs={12} md={4}>
-                    <Paper sx={{ p: 2 }}>
-                      <Typography variant="subtitle1" gutterBottom>
-                        Profit Comparison
-                      </Typography>
-                      <Stack spacing={2}>
-                        {comparisonData.map((model, index) => (
-                          <Box key={model.name}>
-                            <Box
-                              display="flex"
-                              justifyContent="space-between"
-                              mb={1}
-                            >
-                              <Typography variant="body2">
-                                {model.name}
-                              </Typography>
-                              <Typography variant="body2" fontWeight="bold">
-                                {formatCurrency(model.profit)}
-                              </Typography>
-                            </Box>
-                            <LinearProgress
-                              variant="determinate"
-                              value={
-                                (model.profit /
-                                  Math.max(
-                                    ...comparisonData.map((m) => m.profit),
-                                  )) *
-                                100
-                              }
-                              sx={{
-                                height: 8,
-                                backgroundColor: "grey.200",
-                                "& .MuiLinearProgress-bar": {
-                                  backgroundColor: `hsl(${index * 137.5}, 70%, 50%)`,
-                                },
-                              }}
-                            />
-                          </Box>
-                        ))}
-                      </Stack>
-                    </Paper>
-                  </Grid>
-                </Grid>
-              ) : (
-                <Alert severity="info">
-                  Select at least 2 models to compare their performance.
-                </Alert>
-              )}
-            </Box>
-          )}
-
-          {/* Deployment Tab */}
-          {activeTab === 3 && (
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={8}>
-                <Paper sx={{ p: 2 }}>
-                  <Typography variant="h6" gutterBottom>
-                    Deployment Overview
-                  </Typography>
-                  <TableContainer>
-                    <Table>
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Model</TableCell>
-                          <TableCell>Environment</TableCell>
-                          <TableCell>Instances</TableCell>
-                          <TableCell>Load</TableCell>
-                          <TableCell>Status</TableCell>
-                          <TableCell>Actions</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {models
-                          .filter((m) => m.deployment.isDeployed)
-                          .map((model) => (
-                            <TableRow key={model.id}>
-                              <TableCell>{model.name}</TableCell>
-                              <TableCell>
-                                <Chip
-                                  label={model.deployment.environment}
-                                  color={
-                                    model.deployment.environment ===
-                                    "production"
-                                      ? "success"
-                                      : "warning"
-                                  }
-                                  size="small"
-                                />
-                              </TableCell>
-                              <TableCell>
-                                {model.deployment.instances}
-                              </TableCell>
-                              <TableCell>
-                                <Box display="flex" alignItems="center" gap={1}>
-                                  <LinearProgress
-                                    variant="determinate"
-                                    value={model.deployment.load * 100}
-                                    sx={{ width: 60 }}
-                                  />
-                                  <Typography variant="caption">
-                                    {formatPercentage(model.deployment.load)}
-                                  </Typography>
-                                </Box>
-                              </TableCell>
-                              <TableCell>
-                                <Chip
-                                  label="Healthy"
-                                  color="success"
-                                  size="small"
-                                  icon={<CheckCircle />}
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <Button
-                                  size="small"
-                                  variant="outlined"
-                                  color="error"
-                                >
-                                  Undeploy
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </Paper>
-              </Grid>
-
-              <Grid item xs={12} md={4}>
-                <Paper sx={{ p: 2 }}>
-                  <Typography variant="h6" gutterBottom>
-                    Deployment Stats
-                  </Typography>
-                  <Stack spacing={2}>
-                    <Box>
-                      <Typography variant="caption">
-                        Production Models
-                      </Typography>
-                      <Typography variant="h4" color="success.main">
-                        {
-                          models.filter(
-                            (m) => m.deployment.environment === "production",
-                          ).length
-                        }
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption">Staging Models</Typography>
-                      <Typography variant="h4" color="warning.main">
-                        {
-                          models.filter(
-                            (m) => m.deployment.environment === "staging",
-                          ).length
-                        }
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption">Total Instances</Typography>
-                      <Typography variant="h4" color="info.main">
-                        {models.reduce(
-                          (sum, m) =>
-                            sum +
-                            (m.deployment.isDeployed
-                              ? m.deployment.instances
-                              : 0),
-                          0,
-                        )}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption">Avg Load</Typography>
-                      <Typography variant="h4">
-                        {formatPercentage(
-                          models
-                            .filter((m) => m.deployment.isDeployed)
-                            .reduce((sum, m) => sum + m.deployment.load, 0) /
-                            Math.max(
-                              models.filter((m) => m.deployment.isDeployed)
-                                .length,
-                              1,
-                            ),
-                        )}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                </Paper>
-              </Grid>
-            </Grid>
-          )}
-
-          {/* Performance Tab */}
-          {activeTab === 4 && (
-            <Grid container spacing={3}>
-              <Grid item xs={12}>
-                <Paper sx={{ p: 2 }}>
-                  <Typography variant="h6" gutterBottom>
-                    Model Performance Over Time
-                  </Typography>
-                  <ResponsiveContainer width="100%" height={400}>
-                    <ComposedChart
-                      data={[
-                        {
-                          date: "2024-01-01",
-                          ensemble: 74.2,
-                          lstm: 68.9,
-                          xgboost: 70.3,
-                          profit: 8432,
-                        },
-                        {
-                          date: "2024-01-15",
-                          ensemble: 75.1,
-                          lstm: 69.5,
-                          xgboost: 71.1,
-                          profit: 9156,
-                        },
-                        {
-                          date: "2024-02-01",
-                          ensemble: 74.8,
-                          lstm: 70.2,
-                          xgboost: 70.8,
-                          profit: 8934,
-                        },
-                        {
-                          date: "2024-02-15",
-                          ensemble: 76.3,
-                          lstm: 71.1,
-                          xgboost: 72.5,
-                          profit: 10247,
-                        },
-                        {
-                          date: "2024-03-01",
-                          ensemble: 74.2,
-                          lstm: 68.9,
-                          xgboost: 70.3,
-                          profit: 8432,
-                        },
-                      ]}
+              {/* Performance Metrics */}
+              <div>
+                <h4 className="font-medium text-gray-900 dark:text-white mb-3">
+                  Performance Metrics
+                </h4>
+                <div className="grid grid-cols-2 gap-4">
+                  {Object.entries(
+                    modelStatuses.find((s) => s.model.name === selectedModel)
+                      ?.model.performance || {},
+                  ).map(([key, value]) => (
+                    <div
+                      key={key}
+                      className="bg-gray-50 dark:bg-gray-700 rounded-lg p-3"
                     >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" />
-                      <YAxis yAxisId="left" />
-                      <YAxis yAxisId="right" orientation="right" />
-                      <RechartsTooltip />
-                      <Legend />
-                      <Line
-                        yAxisId="left"
-                        type="monotone"
-                        dataKey="ensemble"
-                        stroke={COLORS.primary}
-                        name="Ensemble"
-                      />
-                      <Line
-                        yAxisId="left"
-                        type="monotone"
-                        dataKey="lstm"
-                        stroke={COLORS.secondary}
-                        name="LSTM"
-                      />
-                      <Line
-                        yAxisId="left"
-                        type="monotone"
-                        dataKey="xgboost"
-                        stroke={COLORS.success}
-                        name="XGBoost"
-                      />
-                      <Bar
-                        yAxisId="right"
-                        dataKey="profit"
-                        fill={COLORS.warning}
-                        opacity={0.3}
-                        name="Profit"
-                      />
-                    </ComposedChart>
-                  </ResponsiveContainer>
-                </Paper>
-              </Grid>
-            </Grid>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Deploy Dialog */}
-      <Dialog
-        open={showDeployDialog}
-        onClose={() => setShowDeployDialog(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Deploy Model</DialogTitle>
-        <DialogContent>
-          <Typography gutterBottom>
-            Deploy {selectedModel?.name} to which environment?
-          </Typography>
-          <Stack spacing={2} sx={{ mt: 2 }}>
-            <Button
-              variant="outlined"
-              onClick={() =>
-                selectedModel && handleDeployModel(selectedModel.id, "staging")
-              }
-              startIcon={<CloudUpload />}
-            >
-              Deploy to Staging
-            </Button>
-            <Button
-              variant="contained"
-              onClick={() =>
-                selectedModel &&
-                handleDeployModel(selectedModel.id, "production")
-              }
-              startIcon={<CloudUpload />}
-            >
-              Deploy to Production
-            </Button>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowDeployDialog(false)}>Cancel</Button>
-        </DialogActions>
-      </Dialog>
-    </motion.div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        {key
+                          .replace(/([A-Z])/g, " $1")
+                          .replace(/^./, (str) => str.toUpperCase())}
+                      </div>
+                      <div className="font-semibold text-gray-900 dark:text-white">
+                        {typeof value === "number" ? value.toFixed(3) : value}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

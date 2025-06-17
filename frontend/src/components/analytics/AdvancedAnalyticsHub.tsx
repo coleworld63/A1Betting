@@ -1,1243 +1,500 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import React, { useState, useEffect } from "react";
 import {
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Box,
-  Grid,
-  Chip,
-  Alert,
-  LinearProgress,
-  Tooltip,
-  IconButton,
-  Divider,
-  Paper,
-  Stack,
-  Switch,
-  FormControlLabel,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Tab,
-  Tabs,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Badge,
-  Avatar,
-  ButtonGroup,
-  useTheme,
-  useMediaQuery,
-  Drawer,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  Fab,
-} from "@mui/material";
-import {
-  Analytics,
-  Dashboard,
+  BarChart3,
+  Brain,
   TrendingUp,
-  TrendingDown,
-  Assessment,
-  MonetizationOn,
-  Warning,
-  Info,
-  Download,
-  Settings,
-  Refresh,
-  Timeline,
-  Speed,
-  Psychology,
-  AutoAwesome,
-  ShowChart,
-  BarChart,
-  PieChart,
-  DonutLarge,
-  Insights,
-  Memory,
-  Visibility,
-  ExpandMore,
-  FilterList,
-  Sort,
-  Search,
-  Share,
-  Fullscreen,
-  FullscreenExit,
-  Menu,
-  Close,
-  Add,
-  Remove,
-  Edit,
-  Delete,
-  Star,
-  StarBorder,
-  Bookmark,
-  BookmarkBorder,
-  ThumbUp,
-  ThumbDown,
-  Comment,
-  PersonAdd,
-  Group,
-  Public,
-  Lock,
-  Notifications,
-} from "@mui/icons-material";
+  Target,
+  Shield,
+  Zap,
+  Activity,
+  Clock,
+  DollarSign,
+  AlertTriangle,
+  CheckCircle,
+} from "lucide-react";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip as RechartsTooltip,
-  Legend,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
-  ScatterChart,
-  Scatter,
-  BarChart as RechartsBarChart,
-  Bar,
-  PieChart as RechartsPieChart,
-  Pie,
-  Cell,
-  ComposedChart,
-  Treemap,
-  Sankey,
-  FunnelChart,
-  Funnel,
-  LabelList,
-} from "recharts";
-import {
-  formatCurrency,
-  formatPercentage,
-  formatDateTime,
-} from "../../utils/formatters";
+  usePredictions,
+  useBetting,
+} from "../../store/unified/UnifiedStoreManager";
+import { mlEngine } from "../../services/ml/UnifiedMLEngine";
+import type { ModelPerformanceMetrics } from "../../services/ml/UnifiedMLEngine";
 
-interface AnalyticsWidget {
-  id: string;
-  title: string;
-  type: "chart" | "metric" | "table" | "heatmap" | "treemap" | "sankey";
-  size: "small" | "medium" | "large" | "xl";
-  position: { x: number; y: number };
-  data: any;
-  config: {
-    refreshInterval?: number;
-    showLegend?: boolean;
-    showTooltip?: boolean;
-    colorScheme?: string;
-    aggregation?: string;
-  };
-  isVisible: boolean;
-  isFavorite: boolean;
-  createdBy: string;
-  lastUpdated: Date;
-  category: string;
-  tags: string[];
-}
-
-interface DashboardLayout {
-  id: string;
+interface AnalyticsMetric {
   name: string;
+  value: number;
+  unit: string;
+  change: number;
+  status: "good" | "warning" | "critical";
   description: string;
-  widgets: AnalyticsWidget[];
-  isPublic: boolean;
-  isDefault: boolean;
-  createdBy: string;
-  sharedWith: string[];
-  category: string;
-  lastModified: Date;
 }
 
-interface AnalyticsInsight {
-  id: string;
-  type: "trend" | "anomaly" | "prediction" | "recommendation";
-  title: string;
-  description: string;
+interface ModelAnalysis {
+  modelName: string;
+  accuracy: number;
   confidence: number;
-  impact: "low" | "medium" | "high";
-  actionable: boolean;
-  relatedWidgets: string[];
-  generatedAt: Date;
-  data: any;
+  predictions: number;
+  profitability: number;
+  status: "active" | "training" | "inactive";
 }
 
-interface SocialActivity {
-  id: string;
-  type: "like" | "comment" | "share" | "follow" | "bookmark";
-  user: {
-    id: string;
-    name: string;
-    avatar: string;
-    reputation: number;
-  };
-  target: {
-    type: "widget" | "dashboard" | "insight";
-    id: string;
-    title: string;
-  };
-  timestamp: Date;
-  content?: string;
-}
-
-const WIDGET_SIZES = {
-  small: { width: 300, height: 200 },
-  medium: { width: 400, height: 300 },
-  large: { width: 600, height: 400 },
-  xl: { width: 800, height: 500 },
-};
-
-const COLOR_SCHEMES = {
-  blue: ["#1976d2", "#42a5f5", "#90caf9"],
-  green: ["#388e3c", "#66bb6a", "#a5d6a7"],
-  purple: ["#7b1fa2", "#ab47bc", "#ce93d8"],
-  orange: ["#f57c00", "#ff9800", "#ffcc02"],
-  red: ["#d32f2f", "#f44336", "#ef5350"],
-};
-
-export const AdvancedAnalyticsHub: React.FC = () => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const isTablet = useMediaQuery(theme.breakpoints.down("lg"));
-
-  // State Management
-  const [activeLayout, setActiveLayout] = useState<DashboardLayout | null>(
-    null,
+const AdvancedAnalyticsHub: React.FC = () => {
+  const [metrics, setMetrics] = useState<AnalyticsMetric[]>([]);
+  const [modelAnalytics, setModelAnalytics] = useState<ModelAnalysis[]>([]);
+  const [timeRange, setTimeRange] = useState<"1h" | "24h" | "7d" | "30d">(
+    "24h",
   );
-  const [layouts, setLayouts] = useState<DashboardLayout[]>([]);
-  const [insights, setInsights] = useState<AnalyticsInsight[]>([]);
-  const [socialActivity, setSocialActivity] = useState<SocialActivity[]>([]);
-  const [selectedWidget, setSelectedWidget] = useState<AnalyticsWidget | null>(
-    null,
-  );
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "models" | "performance" | "risk"
+  >("overview");
 
-  // UI State
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState(0);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [showInsights, setShowInsights] = useState(true);
-  const [showSocial, setShowSocial] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
-  const [fullscreenWidget, setFullscreenWidget] = useState<string | null>(null);
+  const { latestPredictions } = usePredictions();
+  const { bets, opportunities } = useBetting();
 
-  // Filters and Settings
-  const [filters, setFilters] = useState({
-    category: "all",
-    dateRange: "7d",
-    onlyFavorites: false,
-    showPublic: true,
-  });
-
-  // Load Analytics Data
-  const loadAnalyticsData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      // Mock comprehensive analytics data
-      const mockLayouts: DashboardLayout[] = [
-        {
-          id: "performance-overview",
-          name: "Performance Overview",
-          description: "Comprehensive performance tracking and analytics",
-          widgets: [
-            {
-              id: "profit-trend",
-              title: "Profit Trend (30 Days)",
-              type: "chart",
-              size: "large",
-              position: { x: 0, y: 0 },
-              data: generateTrendData(),
-              config: {
-                refreshInterval: 30000,
-                showLegend: true,
-                colorScheme: "green",
-              },
-              isVisible: true,
-              isFavorite: true,
-              createdBy: "system",
-              lastUpdated: new Date(),
-              category: "performance",
-              tags: ["profit", "trend", "finance"],
-            },
-            {
-              id: "win-rate-gauge",
-              title: "Current Win Rate",
-              type: "metric",
-              size: "medium",
-              position: { x: 600, y: 0 },
-              data: { value: 0.642, target: 0.65, change: 0.023 },
-              config: {
-                colorScheme: "blue",
-              },
-              isVisible: true,
-              isFavorite: false,
-              createdBy: "system",
-              lastUpdated: new Date(),
-              category: "performance",
-              tags: ["winrate", "metric"],
-            },
-            {
-              id: "roi-distribution",
-              title: "ROI Distribution by Sport",
-              type: "chart",
-              size: "medium",
-              position: { x: 0, y: 400 },
-              data: generateROIData(),
-              config: {
-                showLegend: true,
-                colorScheme: "purple",
-              },
-              isVisible: true,
-              isFavorite: false,
-              createdBy: "system",
-              lastUpdated: new Date(),
-              category: "performance",
-              tags: ["roi", "sports", "distribution"],
-            },
-            {
-              id: "risk-heatmap",
-              title: "Risk Heat Map",
-              type: "heatmap",
-              size: "medium",
-              position: { x: 400, y: 400 },
-              data: generateHeatmapData(),
-              config: {
-                colorScheme: "red",
-              },
-              isVisible: true,
-              isFavorite: true,
-              createdBy: "system",
-              lastUpdated: new Date(),
-              category: "risk",
-              tags: ["risk", "heatmap", "analysis"],
-            },
-          ],
-          isPublic: true,
-          isDefault: true,
-          createdBy: "system",
-          sharedWith: [],
-          category: "performance",
-          lastModified: new Date(),
-        },
-        {
-          id: "ml-insights",
-          name: "ML Model Insights",
-          description:
-            "Advanced machine learning model performance and insights",
-          widgets: [
-            {
-              id: "model-accuracy-trend",
-              title: "Model Accuracy Over Time",
-              type: "chart",
-              size: "xl",
-              position: { x: 0, y: 0 },
-              data: generateModelAccuracyData(),
-              config: {
-                refreshInterval: 60000,
-                showLegend: true,
-                colorScheme: "blue",
-              },
-              isVisible: true,
-              isFavorite: true,
-              createdBy: "system",
-              lastUpdated: new Date(),
-              category: "ml",
-              tags: ["models", "accuracy", "performance"],
-            },
-            {
-              id: "feature-importance",
-              title: "Feature Importance Analysis",
-              type: "chart",
-              size: "large",
-              position: { x: 0, y: 500 },
-              data: generateFeatureImportanceData(),
-              config: {
-                colorScheme: "orange",
-              },
-              isVisible: true,
-              isFavorite: false,
-              createdBy: "system",
-              lastUpdated: new Date(),
-              category: "ml",
-              tags: ["features", "importance", "analysis"],
-            },
-          ],
-          isPublic: false,
-          isDefault: false,
-          createdBy: "user",
-          sharedWith: ["team"],
-          category: "ml",
-          lastModified: new Date(),
-        },
-      ];
-
-      const mockInsights: AnalyticsInsight[] = [
-        {
-          id: "insight-001",
-          type: "trend",
-          title: "NBA Win Rate Trending Up",
-          description:
-            "Your NBA betting performance has improved by 15% over the last 2 weeks, driven by better player prop predictions.",
-          confidence: 0.89,
-          impact: "high",
-          actionable: true,
-          relatedWidgets: ["profit-trend", "win-rate-gauge"],
-          generatedAt: new Date(Date.now() - 3600000),
-          data: { sport: "NBA", improvement: 0.15, timeframe: "2 weeks" },
-        },
-        {
-          id: "insight-002",
-          type: "anomaly",
-          title: "Unusual Tennis Betting Pattern",
-          description:
-            "Detected an unusual spike in tennis betting volume. Consider reviewing risk exposure.",
-          confidence: 0.76,
-          impact: "medium",
-          actionable: true,
-          relatedWidgets: ["risk-heatmap"],
-          generatedAt: new Date(Date.now() - 7200000),
-          data: { sport: "Tennis", anomaly_score: 0.85 },
-        },
-        {
-          id: "insight-003",
-          type: "recommendation",
-          title: "Optimize ML Model Ensemble",
-          description:
-            "Current ensemble weights could be optimized to increase accuracy by an estimated 3-5%.",
-          confidence: 0.82,
-          impact: "high",
-          actionable: true,
-          relatedWidgets: ["model-accuracy-trend"],
-          generatedAt: new Date(Date.now() - 1800000),
-          data: { potential_improvement: 0.04, models_affected: 3 },
-        },
-      ];
-
-      const mockSocialActivity: SocialActivity[] = [
-        {
-          id: "activity-001",
-          type: "like",
-          user: {
-            id: "user-123",
-            name: "Alex Rodriguez",
-            avatar: "/avatars/alex.jpg",
-            reputation: 4.8,
-          },
-          target: {
-            type: "widget",
-            id: "profit-trend",
-            title: "Profit Trend (30 Days)",
-          },
-          timestamp: new Date(Date.now() - 900000),
-        },
-        {
-          id: "activity-002",
-          type: "comment",
-          user: {
-            id: "user-456",
-            name: "Sarah Chen",
-            avatar: "/avatars/sarah.jpg",
-            reputation: 4.6,
-          },
-          target: {
-            type: "dashboard",
-            id: "performance-overview",
-            title: "Performance Overview",
-          },
-          timestamp: new Date(Date.now() - 1800000),
-          content: "Great dashboard! Love the risk heatmap visualization.",
-        },
-      ];
-
-      setLayouts(mockLayouts);
-      setActiveLayout(mockLayouts[0]);
-      setInsights(mockInsights);
-      setSocialActivity(mockSocialActivity);
-    } catch (error) {
-      console.error("Failed to load analytics data:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  // Generate mock data functions
-  const generateTrendData = () => {
-    const data = [];
-    for (let i = 0; i < 30; i++) {
-      data.push({
-        date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .split("T")[0],
-        profit: Math.random() * 1000 + 500,
-        cumulative: (i + 1) * 200 + Math.random() * 500,
-        winRate: 0.5 + Math.random() * 0.3,
-        volume: Math.floor(Math.random() * 50) + 20,
-      });
-    }
-    return data;
-  };
-
-  const generateROIData = () => [
-    { sport: "NBA", roi: 0.142, bets: 234, profit: 2341 },
-    { sport: "NFL", roi: 0.089, bets: 187, profit: 1876 },
-    { sport: "MLB", roi: 0.203, bets: 156, profit: 1987 },
-    { sport: "Tennis", roi: 0.067, bets: 98, profit: 789 },
-    { sport: "Soccer", roi: 0.178, bets: 123, profit: 1456 },
-  ];
-
-  const generateHeatmapData = () => {
-    const data = [];
-    const sports = ["NBA", "NFL", "MLB", "Tennis", "Soccer"];
-    const markets = ["Moneyline", "Spread", "Total", "Props", "Futures"];
-
-    sports.forEach((sport, i) => {
-      markets.forEach((market, j) => {
-        data.push({
-          sport,
-          market,
-          risk: Math.random(),
-          x: j,
-          y: i,
-          value: Math.random() * 100,
-        });
-      });
-    });
-    return data;
-  };
-
-  const generateModelAccuracyData = () => {
-    const models = ["Ensemble", "LSTM", "XGBoost", "Random Forest"];
-    const data = [];
-
-    for (let i = 0; i < 30; i++) {
-      const point: any = {
-        date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000)
-          .toISOString()
-          .split("T")[0],
-      };
-
-      models.forEach((model) => {
-        point[model] = 60 + Math.random() * 30;
-      });
-
-      data.push(point);
-    }
-    return data;
-  };
-
-  const generateFeatureImportanceData = () => [
-    { feature: "Recent Form", importance: 0.234, impact: "High" },
-    { feature: "Head-to-Head", importance: 0.187, impact: "Medium" },
-    { feature: "Injury Report", importance: 0.156, impact: "High" },
-    { feature: "Weather", importance: 0.089, impact: "Low" },
-    { feature: "Venue", importance: 0.123, impact: "Medium" },
-    { feature: "Rest Days", importance: 0.098, impact: "Medium" },
-    { feature: "Market Sentiment", importance: 0.067, impact: "Low" },
-    { feature: "Line Movement", importance: 0.045, impact: "Low" },
-  ];
-
-  // Load data on mount
   useEffect(() => {
-    loadAnalyticsData();
-  }, [loadAnalyticsData]);
+    const calculateMetrics = () => {
+      // Calculate analytics metrics
+      const currentTime = Date.now();
+      const timeRangeMs = {
+        "1h": 3600000,
+        "24h": 86400000,
+        "7d": 604800000,
+        "30d": 2592000000,
+      }[timeRange];
 
-  // Event Handlers
-  const handleLayoutChange = useCallback(
-    (layoutId: string) => {
-      const layout = layouts.find((l) => l.id === layoutId);
-      if (layout) {
-        setActiveLayout(layout);
-      }
-    },
-    [layouts],
-  );
-
-  const handleWidgetToggle = useCallback(
-    (widgetId: string) => {
-      if (!activeLayout) return;
-
-      setActiveLayout((prev) =>
-        prev
-          ? {
-              ...prev,
-              widgets: prev.widgets.map((widget) =>
-                widget.id === widgetId
-                  ? { ...widget, isVisible: !widget.isVisible }
-                  : widget,
-              ),
-            }
-          : null,
+      const recentPredictions = latestPredictions.filter(
+        (p) => currentTime - p.timestamp < timeRangeMs,
       );
-    },
-    [activeLayout],
-  );
-
-  const handleWidgetFavorite = useCallback(
-    (widgetId: string) => {
-      if (!activeLayout) return;
-
-      setActiveLayout((prev) =>
-        prev
-          ? {
-              ...prev,
-              widgets: prev.widgets.map((widget) =>
-                widget.id === widgetId
-                  ? { ...widget, isFavorite: !widget.isFavorite }
-                  : widget,
-              ),
-            }
-          : null,
+      const recentBets = bets.filter(
+        (b) => currentTime - b.timestamp < timeRangeMs,
       );
-    },
-    [activeLayout],
-  );
 
-  const exportDashboard = useCallback(() => {
-    if (!activeLayout) return;
+      const newMetrics: AnalyticsMetric[] = [
+        {
+          name: "Prediction Accuracy",
+          value: 73.5,
+          unit: "%",
+          change: 2.1,
+          status: "good",
+          description: "Model prediction accuracy over selected timeframe",
+        },
+        {
+          name: "Total Predictions",
+          value: recentPredictions.length,
+          unit: "",
+          change: 15.3,
+          status: "good",
+          description: "Number of predictions generated",
+        },
+        {
+          name: "Average Confidence",
+          value:
+            recentPredictions.length > 0
+              ? (recentPredictions.reduce((sum, p) => sum + p.confidence, 0) /
+                  recentPredictions.length) *
+                100
+              : 0,
+          unit: "%",
+          change: 1.8,
+          status: "good",
+          description: "Average confidence across all predictions",
+        },
+        {
+          name: "ROI",
+          value: 12.4,
+          unit: "%",
+          change: 3.2,
+          status: "good",
+          description: "Return on investment for placed bets",
+        },
+        {
+          name: "Sharp Ratio",
+          value: 1.87,
+          unit: "",
+          change: 0.15,
+          status: "good",
+          description: "Risk-adjusted return metric",
+        },
+        {
+          name: "Active Opportunities",
+          value: opportunities.length,
+          unit: "",
+          change: 0,
+          status: opportunities.length > 0 ? "good" : "warning",
+          description: "Current betting opportunities available",
+        },
+      ];
 
-    const exportData = {
-      layout: activeLayout,
-      insights: insights.filter((insight) =>
-        insight.relatedWidgets.some((widgetId) =>
-          activeLayout.widgets.some((w) => w.id === widgetId),
-        ),
-      ),
-      exportedAt: new Date().toISOString(),
+      setMetrics(newMetrics);
+
+      // Model analytics
+      const activeModels = mlEngine.getActiveModels();
+      const modelAnalyticsData: ModelAnalysis[] = activeModels.map(
+        (model, index) => ({
+          modelName: model.name,
+          accuracy: model.performance.accuracy * 100,
+          confidence: Math.random() * 20 + 75, // Mock confidence
+          predictions: Math.floor(Math.random() * 100) + 50,
+          profitability: Math.random() * 20 + 5,
+          status: "active" as const,
+        }),
+      );
+
+      setModelAnalytics(modelAnalyticsData);
     };
 
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `dashboard-${activeLayout.name.toLowerCase().replace(/\s+/g, "-")}-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [activeLayout, insights]);
+    calculateMetrics();
+    const interval = setInterval(calculateMetrics, 30000); // Update every 30 seconds
 
-  // Widget Renderer
-  const renderWidget = useCallback(
-    (widget: AnalyticsWidget) => {
-      if (!widget.isVisible) return null;
+    return () => clearInterval(interval);
+  }, [timeRange, latestPredictions, bets, opportunities]);
 
-      const isFullscreen = fullscreenWidget === widget.id;
-      const size = isFullscreen ? "xl" : widget.size;
-      const dimensions = WIDGET_SIZES[size];
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "good":
+        return "text-green-600 bg-green-100";
+      case "warning":
+        return "text-yellow-600 bg-yellow-100";
+      case "critical":
+        return "text-red-600 bg-red-100";
+      default:
+        return "text-gray-600 bg-gray-100";
+    }
+  };
 
-      return (
-        <motion.div
-          key={widget.id}
-          layout
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          transition={{ duration: 0.3 }}
-          style={{
-            position: isFullscreen ? "fixed" : "relative",
-            top: isFullscreen ? 0 : "auto",
-            left: isFullscreen ? 0 : "auto",
-            width: isFullscreen ? "100vw" : dimensions.width,
-            height: isFullscreen ? "100vh" : dimensions.height,
-            zIndex: isFullscreen ? 9999 : "auto",
-            background: isFullscreen
-              ? theme.palette.background.default
-              : "transparent",
-          }}
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "good":
+        return <CheckCircle className="w-4 h-4" />;
+      case "warning":
+        return <AlertTriangle className="w-4 h-4" />;
+      case "critical":
+        return <AlertTriangle className="w-4 h-4" />;
+      default:
+        return <Activity className="w-4 h-4" />;
+    }
+  };
+
+  const MetricCard: React.FC<{ metric: AnalyticsMetric }> = ({ metric }) => (
+    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-medium text-gray-600 dark:text-gray-400">
+          {metric.name}
+        </h3>
+        <span
+          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(metric.status)}`}
         >
-          <Card sx={{ height: "100%", position: "relative" }}>
-            <CardContent
-              sx={{ height: "100%", display: "flex", flexDirection: "column" }}
-            >
-              <Box
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-                mb={1}
-              >
-                <Typography
-                  variant="h6"
-                  sx={{ fontSize: isMobile ? "1rem" : "1.25rem" }}
-                >
-                  {widget.title}
-                </Typography>
-                <Box display="flex" gap={0.5}>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleWidgetFavorite(widget.id)}
-                  >
-                    {widget.isFavorite ? (
-                      <Star color="warning" />
-                    ) : (
-                      <StarBorder />
-                    )}
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={() =>
-                      setFullscreenWidget(isFullscreen ? null : widget.id)
-                    }
-                  >
-                    {isFullscreen ? <FullscreenExit /> : <Fullscreen />}
-                  </IconButton>
-                  {isEditMode && (
-                    <IconButton
-                      size="small"
-                      onClick={() => handleWidgetToggle(widget.id)}
-                    >
-                      <Visibility />
-                    </IconButton>
-                  )}
-                </Box>
-              </Box>
-
-              <Box flex={1} minHeight={0}>
-                {widget.type === "chart" && (
-                  <ResponsiveContainer width="100%" height="100%">
-                    {widget.id === "profit-trend" && (
-                      <ComposedChart data={widget.data}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" />
-                        <YAxis yAxisId="left" />
-                        <YAxis yAxisId="right" orientation="right" />
-                        <RechartsTooltip />
-                        <Legend />
-                        <Area
-                          yAxisId="left"
-                          type="monotone"
-                          dataKey="cumulative"
-                          fill="#1976d2"
-                          fillOpacity={0.3}
-                        />
-                        <Bar yAxisId="left" dataKey="profit" fill="#4caf50" />
-                        <Line
-                          yAxisId="right"
-                          type="monotone"
-                          dataKey="winRate"
-                          stroke="#ff9800"
-                          strokeWidth={3}
-                        />
-                      </ComposedChart>
-                    )}
-                    {widget.id === "roi-distribution" && (
-                      <RechartsBarChart data={widget.data}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="sport" />
-                        <YAxis />
-                        <RechartsTooltip />
-                        <Bar dataKey="roi" fill="#9c27b0" />
-                      </RechartsBarChart>
-                    )}
-                    {widget.id === "model-accuracy-trend" && (
-                      <LineChart data={widget.data}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" />
-                        <YAxis domain={[60, 90]} />
-                        <RechartsTooltip />
-                        <Legend />
-                        <Line
-                          type="monotone"
-                          dataKey="Ensemble"
-                          stroke="#1976d2"
-                          strokeWidth={2}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="LSTM"
-                          stroke="#dc004e"
-                          strokeWidth={2}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="XGBoost"
-                          stroke="#2e7d32"
-                          strokeWidth={2}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="Random Forest"
-                          stroke="#ed6c02"
-                          strokeWidth={2}
-                        />
-                      </LineChart>
-                    )}
-                    {widget.id === "feature-importance" && (
-                      <RechartsBarChart data={widget.data} layout="horizontal">
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis type="number" />
-                        <YAxis dataKey="feature" type="category" width={120} />
-                        <RechartsTooltip />
-                        <Bar dataKey="importance" fill="#ff9800" />
-                      </RechartsBarChart>
-                    )}
-                  </ResponsiveContainer>
-                )}
-
-                {widget.type === "metric" && (
-                  <Box
-                    display="flex"
-                    flexDirection="column"
-                    justifyContent="center"
-                    alignItems="center"
-                    height="100%"
-                  >
-                    <Typography
-                      variant="h2"
-                      color="primary.main"
-                      fontWeight="bold"
-                    >
-                      {formatPercentage(widget.data.value)}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      color="textSecondary"
-                      gutterBottom
-                    >
-                      Target: {formatPercentage(widget.data.target)}
-                    </Typography>
-                    <Box display="flex" alignItems="center" gap={1}>
-                      {widget.data.change > 0 ? (
-                        <TrendingUp color="success" />
-                      ) : (
-                        <TrendingDown color="error" />
-                      )}
-                      <Typography
-                        variant="body2"
-                        color={
-                          widget.data.change > 0 ? "success.main" : "error.main"
-                        }
-                        fontWeight="bold"
-                      >
-                        {formatPercentage(Math.abs(widget.data.change))}
-                      </Typography>
-                    </Box>
-                  </Box>
-                )}
-
-                {widget.type === "heatmap" && (
-                  <Box
-                    sx={{
-                      width: "100%",
-                      height: "100%",
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                    }}
-                  >
-                    <Typography variant="h6" color="textSecondary">
-                      Risk Heatmap Visualization
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-            </CardContent>
-          </Card>
-        </motion.div>
-      );
-    },
-    [
-      theme,
-      isMobile,
-      isEditMode,
-      fullscreenWidget,
-      handleWidgetFavorite,
-      handleWidgetToggle,
-    ],
+          {getStatusIcon(metric.status)}
+        </span>
+      </div>
+      <div className="flex items-baseline space-x-2">
+        <span className="text-2xl font-bold text-gray-900 dark:text-white">
+          {metric.value.toFixed(1)}
+          {metric.unit}
+        </span>
+        <span
+          className={`text-sm font-medium ${
+            metric.change >= 0 ? "text-green-600" : "text-red-600"
+          }`}
+        >
+          {metric.change >= 0 ? "+" : ""}
+          {metric.change.toFixed(1)}%
+        </span>
+      </div>
+      <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+        {metric.description}
+      </p>
+    </div>
   );
 
-  if (isLoading) {
-    return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        height={400}
-      >
-        <LinearProgress sx={{ width: "50%" }} />
-      </Box>
-    );
-  }
+  const ModelCard: React.FC<{ model: ModelAnalysis }> = ({ model }) => (
+    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-sm border border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center space-x-2">
+          <Brain className="w-5 h-5 text-blue-600" />
+          <h3 className="font-medium text-gray-900 dark:text-white">
+            {model.modelName}
+          </h3>
+        </div>
+        <span
+          className={`px-2 py-1 rounded text-xs font-medium ${
+            model.status === "active"
+              ? "bg-green-100 text-green-800"
+              : model.status === "training"
+                ? "bg-blue-100 text-blue-800"
+                : "bg-gray-100 text-gray-800"
+          }`}
+        >
+          {model.status.toUpperCase()}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 text-sm">
+        <div>
+          <span className="text-gray-600 dark:text-gray-400">Accuracy</span>
+          <div className="font-semibold text-gray-900 dark:text-white">
+            {model.accuracy.toFixed(1)}%
+          </div>
+        </div>
+        <div>
+          <span className="text-gray-600 dark:text-gray-400">Confidence</span>
+          <div className="font-semibold text-gray-900 dark:text-white">
+            {model.confidence.toFixed(1)}%
+          </div>
+        </div>
+        <div>
+          <span className="text-gray-600 dark:text-gray-400">Predictions</span>
+          <div className="font-semibold text-gray-900 dark:text-white">
+            {model.predictions}
+          </div>
+        </div>
+        <div>
+          <span className="text-gray-600 dark:text-gray-400">Profit</span>
+          <div className="font-semibold text-green-600">
+            +{model.profitability.toFixed(1)}%
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
-    <Box sx={{ display: "flex", height: "100vh", overflow: "hidden" }}>
-      {/* Mobile FAB for sidebar */}
-      {isMobile && (
-        <Fab
-          color="primary"
-          aria-label="menu"
-          sx={{ position: "fixed", bottom: 16, right: 16, zIndex: 1000 }}
-          onClick={() => setSidebarOpen(true)}
-        >
-          <Menu />
-        </Fab>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Advanced Analytics Hub
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Comprehensive ML performance and betting analytics
+          </p>
+        </div>
+
+        {/* Time Range Selector */}
+        <div className="flex items-center space-x-2">
+          {(["1h", "24h", "7d", "30d"] as const).map((range) => (
+            <button
+              key={range}
+              onClick={() => setTimeRange(range)}
+              className={`px-3 py-1 text-sm font-medium rounded-lg transition-colors ${
+                timeRange === range
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:hover:bg-gray-600"
+              }`}
+            >
+              {range}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="border-b border-gray-200 dark:border-gray-700">
+        <nav className="flex space-x-8">
+          {[
+            { id: "overview", name: "Overview", icon: BarChart3 },
+            { id: "models", name: "ML Models", icon: Brain },
+            { id: "performance", name: "Performance", icon: TrendingUp },
+            { id: "risk", name: "Risk Analysis", icon: Shield },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as typeof activeTab)}
+                className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === tab.id
+                    ? "border-blue-500 text-blue-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300"
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span>{tab.name}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === "overview" && (
+        <div className="space-y-6">
+          {/* Key Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {metrics.map((metric, index) => (
+              <MetricCard key={index} metric={metric} />
+            ))}
+          </div>
+
+          {/* Quick Stats */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Quick Statistics
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <div className="text-2xl font-bold text-blue-600">
+                  {latestPredictions.length}
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Total Predictions
+                </div>
+              </div>
+              <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <div className="text-2xl font-bold text-green-600">
+                  {bets.filter((b) => b.status === "won").length}
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Winning Bets
+                </div>
+              </div>
+              <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                <div className="text-2xl font-bold text-purple-600">
+                  {opportunities.length}
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Active Opportunities
+                </div>
+              </div>
+              <div className="text-center p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                <div className="text-2xl font-bold text-yellow-600">
+                  {bets.filter((b) => b.status === "active").length}
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Active Bets
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
-      {/* Sidebar */}
-      <Drawer
-        variant={isMobile ? "temporary" : "persistent"}
-        anchor="left"
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        sx={{
-          width: isMobile ? "100%" : 320,
-          flexShrink: 0,
-          "& .MuiDrawer-paper": {
-            width: isMobile ? "100%" : 320,
-            boxSizing: "border-box",
-            position: "relative",
-          },
-        }}
-      >
-        <Box sx={{ p: 2 }}>
-          <Box
-            display="flex"
-            justifyContent="space-between"
-            alignItems="center"
-            mb={2}
-          >
-            <Typography variant="h6">Analytics Hub</Typography>
-            {isMobile && (
-              <IconButton onClick={() => setSidebarOpen(false)}>
-                <Close />
-              </IconButton>
-            )}
-          </Box>
+      {activeTab === "models" && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {modelAnalytics.map((model, index) => (
+              <ModelCard key={index} model={model} />
+            ))}
+          </div>
 
-          {/* Layout Selector */}
-          <FormControl fullWidth sx={{ mb: 2 }}>
-            <InputLabel>Dashboard Layout</InputLabel>
-            <Select
-              value={activeLayout?.id || ""}
-              onChange={(e) => handleLayoutChange(e.target.value)}
-            >
-              {layouts.map((layout) => (
-                <MenuItem key={layout.id} value={layout.id}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    {layout.isPublic ? (
-                      <Public fontSize="small" />
-                    ) : (
-                      <Lock fontSize="small" />
-                    )}
-                    {layout.name}
-                  </Box>
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          {/* Model Performance Chart */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Model Performance Comparison
+            </h3>
+            <div className="h-64 flex items-center justify-center text-gray-500 dark:text-gray-400">
+              <div className="text-center">
+                <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>Performance charts coming soon</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
-          {/* Controls */}
-          <Stack spacing={1} sx={{ mb: 2 }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={isEditMode}
-                  onChange={(e) => setIsEditMode(e.target.checked)}
-                />
-              }
-              label="Edit Mode"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={showInsights}
-                  onChange={(e) => setShowInsights(e.target.checked)}
-                />
-              }
-              label="AI Insights"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={showSocial}
-                  onChange={(e) => setShowSocial(e.target.checked)}
-                />
-              }
-              label="Social Feed"
-            />
-          </Stack>
+      {activeTab === "performance" && (
+        <div className="space-y-6">
+          {/* Performance Metrics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Betting Performance
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    Win Rate
+                  </span>
+                  <span className="font-semibold text-green-600">68.5%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    Average Odds
+                  </span>
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    1.92
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    Profit Factor
+                  </span>
+                  <span className="font-semibold text-blue-600">2.14</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    Max Drawdown
+                  </span>
+                  <span className="font-semibold text-red-600">-8.3%</span>
+                </div>
+              </div>
+            </div>
 
-          <ButtonGroup fullWidth sx={{ mb: 2 }}>
-            <Button onClick={loadAnalyticsData} startIcon={<Refresh />}>
-              Refresh
-            </Button>
-            <Button onClick={exportDashboard} startIcon={<Download />}>
-              Export
-            </Button>
-          </ButtonGroup>
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Model Performance
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    Accuracy
+                  </span>
+                  <span className="font-semibold text-green-600">73.5%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    Precision
+                  </span>
+                  <span className="font-semibold text-blue-600">71.8%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    Recall
+                  </span>
+                  <span className="font-semibold text-purple-600">69.4%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600 dark:text-gray-400">
+                    F1 Score
+                  </span>
+                  <span className="font-semibold text-yellow-600">70.6%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
-          {/* Widget List */}
-          {activeLayout && (
-            <Box>
-              <Typography variant="subtitle2" gutterBottom>
-                Widgets (
-                {activeLayout.widgets.filter((w) => w.isVisible).length}/
-                {activeLayout.widgets.length})
-              </Typography>
-              <List dense>
-                {activeLayout.widgets.map((widget) => (
-                  <ListItem key={widget.id}>
-                    <ListItemIcon>
-                      <Switch
-                        checked={widget.isVisible}
-                        onChange={() => handleWidgetToggle(widget.id)}
-                        size="small"
-                      />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={widget.title}
-                      secondary={widget.category}
-                    />
-                    <IconButton
-                      size="small"
-                      onClick={() => handleWidgetFavorite(widget.id)}
-                    >
-                      {widget.isFavorite ? (
-                        <Star color="warning" />
-                      ) : (
-                        <StarBorder />
-                      )}
-                    </IconButton>
-                  </ListItem>
-                ))}
-              </List>
-            </Box>
-          )}
-        </Box>
-      </Drawer>
-
-      {/* Main Content */}
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          p: isMobile ? 1 : 3,
-          overflow: "auto",
-          marginLeft: isMobile ? 0 : sidebarOpen ? 0 : "-320px",
-          transition: theme.transitions.create("margin", {
-            easing: theme.transitions.easing.sharp,
-            duration: theme.transitions.duration.leavingScreen,
-          }),
-        }}
-      >
-        {/* Header */}
-        <Box
-          display="flex"
-          justifyContent="space-between"
-          alignItems="center"
-          mb={3}
-        >
-          <Typography
-            variant="h4"
-            sx={{ fontSize: isMobile ? "1.5rem" : "2rem" }}
-          >
-            {activeLayout?.name || "Analytics Hub"}
-          </Typography>
-          <Box display="flex" gap={1}>
-            <Badge badgeContent={insights.length} color="error">
-              <Button
-                variant={showInsights ? "contained" : "outlined"}
-                startIcon={<AutoAwesome />}
-                onClick={() => setShowInsights(!showInsights)}
-                size={isMobile ? "small" : "medium"}
-              >
-                Insights
-              </Button>
-            </Badge>
-            <Badge badgeContent={socialActivity.length} color="primary">
-              <Button
-                variant={showSocial ? "contained" : "outlined"}
-                startIcon={<Group />}
-                onClick={() => setShowSocial(!showSocial)}
-                size={isMobile ? "small" : "medium"}
-              >
-                Social
-              </Button>
-            </Badge>
-          </Box>
-        </Box>
-
-        {/* Insights Panel */}
-        <AnimatePresence>
-          {showInsights && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Paper sx={{ p: 2, mb: 3 }}>
-                <Typography
-                  variant="h6"
-                  gutterBottom
-                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                >
-                  <AutoAwesome />
-                  AI-Powered Insights
-                </Typography>
-                <Grid container spacing={2}>
-                  {insights.slice(0, 3).map((insight) => (
-                    <Grid item xs={12} md={4} key={insight.id}>
-                      <Card sx={{ height: "100%" }}>
-                        <CardContent>
-                          <Box
-                            display="flex"
-                            justifyContent="space-between"
-                            alignItems="start"
-                            mb={1}
-                          >
-                            <Chip
-                              label={insight.type}
-                              color={
-                                insight.type === "trend"
-                                  ? "info"
-                                  : insight.type === "anomaly"
-                                    ? "warning"
-                                    : insight.type === "recommendation"
-                                      ? "success"
-                                      : "default"
-                              }
-                              size="small"
-                            />
-                            <Chip
-                              label={`${Math.round(insight.confidence * 100)}%`}
-                              size="small"
-                              variant="outlined"
-                            />
-                          </Box>
-                          <Typography variant="subtitle2" gutterBottom>
-                            {insight.title}
-                          </Typography>
-                          <Typography variant="body2" color="textSecondary">
-                            {insight.description}
-                          </Typography>
-                          <Box
-                            display="flex"
-                            justifyContent="space-between"
-                            alignItems="center"
-                            mt={2}
-                          >
-                            <Chip
-                              label={`${insight.impact} impact`}
-                              color={
-                                insight.impact === "high"
-                                  ? "error"
-                                  : insight.impact === "medium"
-                                    ? "warning"
-                                    : "success"
-                              }
-                              size="small"
-                            />
-                            {insight.actionable && (
-                              <Button size="small">Take Action</Button>
-                            )}
-                          </Box>
-                        </CardContent>
-                      </Card>
-                    </Grid>
-                  ))}
-                </Grid>
-              </Paper>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Social Feed Panel */}
-        <AnimatePresence>
-          {showSocial && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              <Paper sx={{ p: 2, mb: 3 }}>
-                <Typography
-                  variant="h6"
-                  gutterBottom
-                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                >
-                  <Group />
-                  Community Activity
-                </Typography>
-                <List>
-                  {socialActivity.slice(0, 5).map((activity) => (
-                    <ListItem key={activity.id}>
-                      <ListItemIcon>
-                        <Avatar
-                          src={activity.user.avatar}
-                          sx={{ width: 32, height: 32 }}
-                        >
-                          {activity.user.name[0]}
-                        </Avatar>
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <Typography variant="body2" fontWeight="bold">
-                              {activity.user.name}
-                            </Typography>
-                            <Typography variant="body2">
-                              {activity.type === "like"
-                                ? "liked"
-                                : activity.type === "comment"
-                                  ? "commented on"
-                                  : activity.type === "share"
-                                    ? "shared"
-                                    : activity.type}
-                            </Typography>
-                            <Typography variant="body2" fontWeight="bold">
-                              {activity.target.title}
-                            </Typography>
-                          </Box>
-                        }
-                        secondary={
-                          <Box>
-                            {activity.content && (
-                              <Typography variant="caption" display="block">
-                                "{activity.content}"
-                              </Typography>
-                            )}
-                            <Typography variant="caption" color="textSecondary">
-                              {formatDateTime(activity.timestamp)}
-                            </Typography>
-                          </Box>
-                        }
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              </Paper>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Widget Grid */}
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: isMobile
-              ? "1fr"
-              : isTablet
-                ? "repeat(auto-fit, minmax(400px, 1fr))"
-                : "repeat(auto-fit, minmax(300px, 1fr))",
-            gap: 2,
-            alignItems: "start",
-          }}
-        >
-          <AnimatePresence>
-            {activeLayout?.widgets.map((widget) => renderWidget(widget))}
-          </AnimatePresence>
-        </Box>
-      </Box>
-    </Box>
+      {activeTab === "risk" && (
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Risk Analysis
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <div className="text-xl font-bold text-green-600">Low</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Current Risk Level
+                </div>
+              </div>
+              <div className="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <div className="text-xl font-bold text-blue-600">12.4%</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Portfolio at Risk
+                </div>
+              </div>
+              <div className="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                <div className="text-xl font-bold text-purple-600">1.87</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  Sharpe Ratio
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

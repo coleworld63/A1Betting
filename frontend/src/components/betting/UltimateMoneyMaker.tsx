@@ -1,264 +1,494 @@
-import React, { useState, useEffect } from 'react';
-import { useStore } from '@/stores';
-import { Card, Grid, Typography, Slider, Select, MenuItem, Button } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
-import MLService from '../../services/ml/index';
-import PrizePicksService from '../../services/prizepicks/index';
-import { toast } from 'react-toastify';
+import React, { useState, useEffect } from "react";
+import {
+  DollarSign,
+  TrendingUp,
+  Target,
+  Zap,
+  Brain,
+  AlertCircle,
+} from "lucide-react";
+import { useBetting, useUser } from "../../store/unified/UnifiedStoreManager";
+import { mlEngine } from "../../services/ml/UnifiedMLEngine";
+import type { EnsemblePrediction } from "../../services/ml/UnifiedMLEngine";
 
-interface ConfigurationMatrix {
-  investmentAmount: number;
-  mlModelSet: string;
-  confidenceThreshold: number;
-  strategyMode: string;
-  portfolioSize: number;
-  sportsUniverse: string[];
-  timeWindow: string;
+interface OpportunityCandidate {
+  id: string;
+  eventId: string;
+  market: string;
+  description: string;
+  currentOdds: number;
+  predictedProbability: number;
+  valueEdge: number;
+  kellyFraction: number;
+  recommendedStake: number;
+  confidence: number;
+  riskLevel: "low" | "medium" | "high";
+  maxStake: number;
+  expectedReturn: number;
 }
 
-const INITIAL_CONFIG: ConfigurationMatrix = {
-  investmentAmount: 1000,
-  mlModelSet: 'ensemble',
-  confidenceThreshold: 85,
-  strategyMode: 'balanced',
-  portfolioSize: 3,
-  sportsUniverse: ['NBA'],
-  timeWindow: 'today',
-};
+const UltimateMoneyMaker: React.FC = () => {
+  const [opportunities, setOpportunities] = useState<OpportunityCandidate[]>(
+    [],
+  );
+  const [isScanning, setIsScanning] = useState(false);
+  const [autoMode, setAutoMode] = useState(false);
+  const [selectedOpportunity, setSelectedOpportunity] =
+    useState<OpportunityCandidate | null>(null);
+  const [stakeAmount, setStakeAmount] = useState(0);
 
-const ML_MODEL_SETS = [
-  { value: 'ensemble', label: 'Ensemble (All Models)' },
-  { value: 'traditional', label: 'Traditional ML' },
-  { value: 'deep_learning', label: 'Deep Learning' },
-  { value: 'time_series', label: 'Time Series' },
-  { value: 'optimization', label: 'Optimization' },
-];
+  const { bankroll, addBet, addOpportunity } = useBetting();
+  const { preferences } = useUser();
 
-const STRATEGY_MODES = [
-  { value: 'aggressive', label: 'Aggressive' },
-  { value: 'balanced', label: 'Balanced' },
-  { value: 'conservative', label: 'Conservative' },
-  { value: 'momentum', label: 'Momentum' },
-  { value: 'contrarian', label: 'Contrarian' },
-  { value: 'arbitrage', label: 'Arbitrage' },
-];
-
-const TIME_WINDOWS = [
-  { value: 'today', label: 'Today' },
-  { value: '3h', label: 'Next 3 Hours' },
-  { value: '6h', label: 'Next 6 Hours' },
-  { value: '12h', label: 'Next 12 Hours' },
-  { value: 'tomorrow', label: 'Tomorrow' },
-  { value: 'week', label: 'This Week' },
-  { value: 'weekend', label: 'This Weekend' },
-  { value: 'custom', label: 'Custom Range' },
-];
-
-const SPORTS_OPTIONS = [
-  { value: 'NBA', label: 'NBA' },
-  { value: 'NFL', label: 'NFL' },
-  { value: 'MLB', label: 'MLB' },
-  { value: 'NHL', label: 'NHL' },
-  { value: 'WNBA', label: 'WNBA' },
-  { value: 'SOCCER', label: 'Soccer' },
-];
-
-export const UltimateMoneyMaker: React.FC = () => {
-  const theme = useTheme();
-  const [config, setConfig] = useState<ConfigurationMatrix>(INITIAL_CONFIG);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [recommendations, setRecommendations] = useState<any[]>([]);
-
-  const handleConfigChange = (key: keyof ConfigurationMatrix, value: any) => {
-    setConfig(prev => ({ ...prev, [key]: value }));
-  };
-
-  const generateRecommendations = async () => {
+  // Scan for opportunities
+  const scanForOpportunities = async () => {
+    setIsScanning(true);
     try {
-      setIsGenerating(true);
-      const mlService = MLService.getInstance();
-      const prizepicksService = PrizePicksService.getInstance();
+      // Simulate scanning process
+      await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      // Get ML predictions
-      const predictions = await mlService.predict({
-        modelSet: config.mlModelSet,
-        confidenceThreshold: config.confidenceThreshold,
-        sports: config.sportsUniverse,
-        timeWindow: config.timeWindow,
+      const mockOpportunities: OpportunityCandidate[] = [
+        {
+          id: "opp-1",
+          eventId: "game-lakers-warriors",
+          market: "moneyline",
+          description: "Lakers vs Warriors - Lakers ML",
+          currentOdds: 2.1,
+          predictedProbability: 0.52,
+          valueEdge: 0.092,
+          kellyFraction: 0.047,
+          recommendedStake: Math.min(bankroll * 0.02, bankroll * 0.047 * 0.25),
+          confidence: 0.78,
+          riskLevel: "medium",
+          maxStake: bankroll * 0.05,
+          expectedReturn: 0,
+        },
+        {
+          id: "opp-2",
+          eventId: "game-celtics-heat",
+          market: "total_points",
+          description: "Celtics vs Heat - Over 215.5",
+          currentOdds: 1.91,
+          predictedProbability: 0.58,
+          valueEdge: 0.108,
+          kellyFraction: 0.062,
+          recommendedStake: Math.min(bankroll * 0.03, bankroll * 0.062 * 0.25),
+          confidence: 0.82,
+          riskLevel: "low",
+          maxStake: bankroll * 0.05,
+          expectedReturn: 0,
+        },
+        {
+          id: "opp-3",
+          eventId: "game-mavs-suns",
+          market: "player_props",
+          description: "Luka Dončić Over 29.5 Points",
+          currentOdds: 1.85,
+          predictedProbability: 0.61,
+          valueEdge: 0.129,
+          kellyFraction: 0.071,
+          recommendedStake: Math.min(bankroll * 0.025, bankroll * 0.071 * 0.25),
+          confidence: 0.85,
+          riskLevel: "low",
+          maxStake: bankroll * 0.04,
+          expectedReturn: 0,
+        },
+      ];
+
+      // Calculate expected returns
+      mockOpportunities.forEach((opp) => {
+        opp.expectedReturn =
+          opp.recommendedStake *
+          (opp.currentOdds - 1) *
+          opp.predictedProbability;
       });
 
-      // Get PrizePicks props
-      const props = await prizepicksService.getAvailableProps({
-        sports: config.sportsUniverse,
-        timeWindow: config.timeWindow,
-      });
+      setOpportunities(mockOpportunities);
 
-      // Generate optimized lineup
-      const lineup = await prizepicksService.generateOptimizedLineup({
-        predictions,
-        props,
-        investmentAmount: config.investmentAmount,
-        strategyMode: config.strategyMode,
-        portfolioSize: config.portfolioSize,
+      // Add to betting store
+      mockOpportunities.forEach((opp) => {
+        addOpportunity({
+          id: opp.id,
+          eventId: opp.eventId,
+          market: opp.market,
+          odds: opp.currentOdds,
+          prediction: {
+            id: opp.id,
+            confidence: opp.confidence,
+            predictedValue: opp.predictedProbability,
+            factors: [],
+            timestamp: Date.now(),
+          },
+          valueEdge: opp.valueEdge,
+          kellyFraction: opp.kellyFraction,
+          recommendedStake: opp.recommendedStake,
+          timestamp: Date.now(),
+        });
       });
-
-      setRecommendations(lineup);
-      toast.success('Generated optimized lineup!');
     } catch (error) {
-      toast.error('Failed to generate recommendations');
-      console.error('Error generating recommendations:', error);
+      console.error("Failed to scan for opportunities:", error);
     } finally {
-      setIsGenerating(false);
+      setIsScanning(false);
     }
   };
 
+  // Place bet
+  const placeBet = (opportunity: OpportunityCandidate, amount: number) => {
+    addBet({
+      eventId: opportunity.eventId,
+      amount,
+      odds: opportunity.currentOdds,
+      status: "active",
+      prediction: {
+        id: opportunity.id,
+        confidence: opportunity.confidence,
+        predictedValue: opportunity.predictedProbability,
+        factors: [],
+        timestamp: Date.now(),
+      },
+    });
+
+    setSelectedOpportunity(null);
+    setStakeAmount(0);
+  };
+
+  // Auto-scan when component mounts
+  useEffect(() => {
+    scanForOpportunities();
+  }, []);
+
+  // Auto-mode scanning
+  useEffect(() => {
+    if (!autoMode) return;
+
+    const interval = setInterval(() => {
+      scanForOpportunities();
+    }, 60000); // Scan every minute
+
+    return () => clearInterval(interval);
+  }, [autoMode]);
+
+  const getRiskColor = (risk: string) => {
+    switch (risk) {
+      case "low":
+        return "text-green-600 bg-green-100";
+      case "medium":
+        return "text-yellow-600 bg-yellow-100";
+      case "high":
+        return "text-red-600 bg-red-100";
+      default:
+        return "text-gray-600 bg-gray-100";
+    }
+  };
+
+  const totalPotentialReturn = opportunities.reduce(
+    (sum, opp) => sum + opp.expectedReturn,
+    0,
+  );
+  const averageConfidence =
+    opportunities.length > 0
+      ? opportunities.reduce((sum, opp) => sum + opp.confidence, 0) /
+        opportunities.length
+      : 0;
+
   return (
-    <Card sx={{ p: 3, mb: 3 }}>
-      <Typography gutterBottom variant="h5">
-        Ultimate Money Maker
-      </Typography>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-green-500 to-blue-600 rounded-lg p-6 text-white">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold mb-2">Ultimate Money Maker</h1>
+            <p className="opacity-90">AI-powered value betting opportunities</p>
+          </div>
+          <div className="text-right">
+            <div className="text-3xl font-bold">
+              ${totalPotentialReturn.toFixed(2)}
+            </div>
+            <div className="opacity-90">Potential Return</div>
+          </div>
+        </div>
+      </div>
 
-      <Grid container spacing={3}>
-        {/* Investment Amount */}
-        <Grid item md={6} xs={12}>
-          <Typography gutterBottom>Investment Amount</Typography>
-          <Slider
-            max={100000}
-            min={100}
-            step={100}
-            value={config.investmentAmount}
-            valueLabelDisplay="auto"
-            valueLabelFormat={value => `$${value}`}
-            onChange={(_, value) => handleConfigChange('investmentAmount', value)}
-          />
-        </Grid>
+      {/* Controls */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+            Opportunity Scanner
+          </h2>
+          <div className="flex items-center space-x-3">
+            <label className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={autoMode}
+                onChange={(e) => setAutoMode(e.target.checked)}
+                className="rounded"
+              />
+              <span className="text-sm text-gray-600 dark:text-gray-400">
+                Auto Mode
+              </span>
+            </label>
+            <button
+              onClick={scanForOpportunities}
+              disabled={isScanning}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+            >
+              {isScanning ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                  <span>Scanning...</span>
+                </>
+              ) : (
+                <>
+                  <Zap className="w-4 h-4" />
+                  <span>Scan Now</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
 
-        {/* ML Model Set */}
-        <Grid item md={6} xs={12}>
-          <Typography gutterBottom>ML Model Set</Typography>
-          <Select
-            fullWidth
-            value={config.mlModelSet}
-            onChange={e => handleConfigChange('mlModelSet', e.target.value)}
-          >
-            {ML_MODEL_SETS.map(model => (
-              <MenuItem key={model.value} value={model.value}>
-                {model.label}
-              </MenuItem>
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <div className="text-2xl font-bold text-gray-900 dark:text-white">
+              {opportunities.length}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Opportunities
+            </div>
+          </div>
+          <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <div className="text-2xl font-bold text-green-600">
+              {(averageConfidence * 100).toFixed(0)}%
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Avg Confidence
+            </div>
+          </div>
+          <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600">
+              ${bankroll.toLocaleString()}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Bankroll
+            </div>
+          </div>
+          <div className="text-center p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+            <div className="text-2xl font-bold text-purple-600">
+              {opportunities.filter((o) => o.riskLevel === "low").length}
+            </div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">
+              Low Risk
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Opportunities */}
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-6">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
+          Current Opportunities
+        </h2>
+
+        {opportunities.length === 0 ? (
+          <div className="text-center py-8">
+            <Brain className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500 dark:text-gray-400">
+              {isScanning
+                ? "Scanning for opportunities..."
+                : "No opportunities found. Click scan to search for value bets."}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {opportunities.map((opportunity) => (
+              <div
+                key={opportunity.id}
+                className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">
+                      {opportunity.description}
+                    </h3>
+                    <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                      <span>Odds: {opportunity.currentOdds}</span>
+                      <span>•</span>
+                      <span>
+                        Edge: {(opportunity.valueEdge * 100).toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-medium ${getRiskColor(opportunity.riskLevel)}`}
+                    >
+                      {opportunity.riskLevel.toUpperCase()}
+                    </span>
+                    <span className="text-lg font-bold text-green-600">
+                      ${opportunity.expectedReturn.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-3">
+                  <div className="text-center">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      Confidence
+                    </div>
+                    <div className="font-semibold text-gray-900 dark:text-white">
+                      {(opportunity.confidence * 100).toFixed(0)}%
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      Probability
+                    </div>
+                    <div className="font-semibold text-gray-900 dark:text-white">
+                      {(opportunity.predictedProbability * 100).toFixed(1)}%
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      Kelly %
+                    </div>
+                    <div className="font-semibold text-gray-900 dark:text-white">
+                      {(opportunity.kellyFraction * 100).toFixed(1)}%
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      Recommended
+                    </div>
+                    <div className="font-semibold text-green-600">
+                      ${opportunity.recommendedStake.toFixed(2)}
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-sm text-gray-600 dark:text-gray-400">
+                      Max Stake
+                    </div>
+                    <div className="font-semibold text-gray-900 dark:text-white">
+                      ${opportunity.maxStake.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-400">
+                    <Target className="w-4 h-4" />
+                    <span>
+                      Expected Return: ${opportunity.expectedReturn.toFixed(2)}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedOpportunity(opportunity);
+                      setStakeAmount(opportunity.recommendedStake);
+                    }}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
+                  >
+                    <DollarSign className="w-4 h-4" />
+                    <span>Place Bet</span>
+                  </button>
+                </div>
+              </div>
             ))}
-          </Select>
-        </Grid>
+          </div>
+        )}
+      </div>
 
-        {/* Confidence Threshold */}
-        <Grid item md={6} xs={12}>
-          <Typography gutterBottom>Confidence Threshold</Typography>
-          <Slider
-            max={99}
-            min={80}
-            step={1}
-            value={config.confidenceThreshold}
-            valueLabelDisplay="auto"
-            valueLabelFormat={value => `${value}%`}
-            onChange={(_, value) => handleConfigChange('confidenceThreshold', value)}
-          />
-        </Grid>
+      {/* Bet Placement Modal */}
+      {selectedOpportunity && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Place Bet
+            </h3>
 
-        {/* Strategy Mode */}
-        <Grid item md={6} xs={12}>
-          <Typography gutterBottom>Strategy Mode</Typography>
-          <Select
-            fullWidth
-            value={config.strategyMode}
-            onChange={e => handleConfigChange('strategyMode', e.target.value)}
-          >
-            {STRATEGY_MODES.map(strategy => (
-              <MenuItem key={strategy.value} value={strategy.value}>
-                {strategy.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </Grid>
+            <div className="mb-4">
+              <p className="text-gray-600 dark:text-gray-400 mb-2">
+                {selectedOpportunity.description}
+              </p>
+              <div className="text-sm text-gray-500 dark:text-gray-500">
+                Odds: {selectedOpportunity.currentOdds} • Confidence:{" "}
+                {(selectedOpportunity.confidence * 100).toFixed(0)}%
+              </div>
+            </div>
 
-        {/* Portfolio Size */}
-        <Grid item md={6} xs={12}>
-          <Typography gutterBottom>Portfolio Size</Typography>
-          <Slider
-            marks
-            max={6}
-            min={2}
-            step={1}
-            value={config.portfolioSize}
-            valueLabelDisplay="auto"
-            onChange={(_, value) => handleConfigChange('portfolioSize', value)}
-          />
-        </Grid>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Stake Amount
+              </label>
+              <input
+                type="number"
+                value={stakeAmount}
+                onChange={(e) =>
+                  setStakeAmount(parseFloat(e.target.value) || 0)
+                }
+                min="1"
+                max={selectedOpportunity.maxStake}
+                step="0.01"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+              />
+              <div className="flex justify-between text-xs text-gray-500 dark:text-gray-500 mt-1">
+                <span>
+                  Recommended: $
+                  {selectedOpportunity.recommendedStake.toFixed(2)}
+                </span>
+                <span>Max: ${selectedOpportunity.maxStake.toFixed(2)}</span>
+              </div>
+            </div>
 
-        {/* Sports Universe */}
-        <Grid item md={6} xs={12}>
-          <Typography gutterBottom>Sports Universe</Typography>
-          <Select
-            fullWidth
-            multiple
-            value={config.sportsUniverse}
-            onChange={e => handleConfigChange('sportsUniverse', e.target.value)}
-          >
-            {SPORTS_OPTIONS.map(sport => (
-              <MenuItem key={sport.value} value={sport.value}>
-                {sport.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </Grid>
+            {stakeAmount > 0 && (
+              <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                <div className="flex justify-between text-sm">
+                  <span>Potential Win:</span>
+                  <span className="font-semibold text-green-600">
+                    $
+                    {(
+                      (selectedOpportunity.currentOdds - 1) *
+                      stakeAmount
+                    ).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Total Return:</span>
+                  <span className="font-semibold">
+                    $
+                    {(selectedOpportunity.currentOdds * stakeAmount).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            )}
 
-        {/* Time Window */}
-        <Grid item md={6} xs={12}>
-          <Typography gutterBottom>Time Window</Typography>
-          <Select
-            fullWidth
-            value={config.timeWindow}
-            onChange={e => handleConfigChange('timeWindow', e.target.value)}
-          >
-            {TIME_WINDOWS.map(window => (
-              <MenuItem key={window.value} value={window.value}>
-                {window.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </Grid>
-
-        {/* Generate Button */}
-        <Grid item xs={12}>
-          <Button
-            fullWidth
-            color="primary"
-            disabled={isGenerating}
-            variant="contained"
-            onClick={generateRecommendations}
-          >
-            {isGenerating ? 'Generating...' : 'Generate Optimized Lineup'}
-          </Button>
-        </Grid>
-      </Grid>
-
-      {/* Recommendations Display */}
-      {recommendations.length > 0 && (
-        <Grid container spacing={2} sx={{ mt: 3 }}>
-          {recommendations.map((rec, index) => (
-            <Grid key={index} item xs={12}>
-              <Card sx={{ p: 2 }}>
-                <Typography variant="h6">{rec.playerName}</Typography>
-                <Typography>
-                  Prop: {rec.propType} {rec.line}
-                </Typography>
-                <Typography>Confidence: {rec.confidence}%</Typography>
-                <Typography>Expected Value: {rec.expectedValue}</Typography>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => {
+                  setSelectedOpportunity(null);
+                  setStakeAmount(0);
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => placeBet(selectedOpportunity, stakeAmount)}
+                disabled={
+                  stakeAmount <= 0 ||
+                  stakeAmount > selectedOpportunity.maxStake ||
+                  stakeAmount > bankroll
+                }
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Confirm Bet
+              </button>
+            </div>
+          </div>
+        </div>
       )}
-    </Card>
+    </div>
   );
 };
 
-export default React.memo(UltimateMoneyMaker);
+export default UltimateMoneyMaker;

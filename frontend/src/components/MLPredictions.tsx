@@ -1,218 +1,233 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
-import Typography from '@mui/material/Typography';
-import Button from '@mui/material/Button';
-import CircularProgress from '@mui/material/CircularProgress';
-import Alert from '@mui/material/Alert';
-import type { PredictionModel, ModelMetrics } from '../types/prediction';
-import { predictionService } from '../services/predictionService';
-import { useWebSocket } from '../hooks/useWebSocket';
-import SHAPVisualization from './betting/SHAPVisualization';
-import ModelPerformance from './ModelPerformance';
+import React, { useState, useEffect } from "react";
+import { usePredictions } from "../store/unified/UnifiedStoreManager";
+import { mlEngine } from "../services/ml/UnifiedMLEngine";
+import type {
+  PredictionInput,
+  EnsemblePrediction,
+} from "../services/ml/UnifiedMLEngine";
 
-// Define the expected WebSocket message format
-interface PredictionWebSocketMessage {
-  type: 'new_prediction' | 'model_update' | 'error';
-  data?: string;
-  payload?: unknown; // Replaced 'any' with 'unknown' for type safety
+interface MLPredictionsProps {
+  eventId?: string;
+  sport?: string;
 }
 
-// Use Vite env variable for websocket URL, fallback to default
-const WEBSOCKET_URL = import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8000/ws/predictions/';
+export const MLPredictions: React.FC<MLPredictionsProps> = ({
+  eventId,
+  sport = "basketball_nba",
+}) => {
+  const { predictions, latestPredictions, updatePrediction } = usePredictions();
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState(eventId || "");
 
-interface ShapDetailsCacheEntry {
-  data?: unknown; // Replaced 'any' with 'unknown' for type safety
-  isLoading: boolean;
-  error?: string | null;
-  visible: boolean;
-}
+  const generatePrediction = async () => {
+    if (!selectedEventId) return;
 
-interface ShapDetailsCache {
-  [eventId: string]: ShapDetailsCacheEntry;
-}
+    setIsGenerating(true);
+    try {
+      const input: PredictionInput = {
+        eventId: selectedEventId,
+        sport,
+        homeTeam: "Team A",
+        awayTeam: "Team B",
+        features: {
+          elo_difference: 50,
+          player_recent_form: 0.8,
+          home_court_advantage: 2.5,
+          rest_days: 1,
+          injury_impact: 0.1,
+        },
+        market: "moneyline",
+        timestamp: Date.now(),
+      };
 
-export const MLPredictions: React.FC = () => {
-  const [predictionsData, setPredictionsData] = useState<PredictionModel[]>([]);
-  const [metricsData, setMetricsData] = useState<ModelMetrics | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-  const [shapDetailsCache, setShapDetailsCache] = useState<ShapDetailsCache>({});
-  const [incomingMessage, setIncomingMessage] = useState<PredictionWebSocketMessage | null>(null);
+      const prediction = await mlEngine.generatePrediction(input);
 
-  const handleWebSocketMessage = (message: PredictionWebSocketMessage) => {
-    setIncomingMessage(message);
+      updatePrediction(selectedEventId, {
+        id: selectedEventId,
+        confidence: prediction.confidence,
+        predictedValue: prediction.finalPrediction,
+        factors: prediction.factors,
+        timestamp: Date.now(),
+        metadata: {
+          modelVersion: "ensemble_v1.0",
+          features: input.features,
+        },
+      });
+    } catch (error) {
+      console.error("Failed to generate prediction:", error);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
-  // Initialize WebSocket connection
-  useWebSocket({
-    url: WEBSOCKET_URL,
-    onMessage: handleWebSocketMessage,
-  });
+  const formatConfidence = (confidence: number) => {
+    return (confidence * 100).toFixed(1);
+  };
 
-  useEffect(() => {
-    if (incomingMessage && incomingMessage.data) {
-      try {
-        const messageData = JSON.parse(incomingMessage.data as string);
-        if (messageData.type === 'new_prediction' && messageData.payload) {
-          const sortedPredictions = [...predictionsData].sort((a: PredictionModel, b: PredictionModel) => 
-            new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-          );
-          setPredictionsData([messageData.payload as PredictionModel, ...sortedPredictions.filter(p => p.id !== (messageData.payload as PredictionModel).id)]);
-        } else if (messageData.type === 'metrics_update' && messageData.payload) {
-          setMetricsData(messageData.payload as ModelMetrics);
-        }
-      } catch (e) {
-        console.error('Failed to parse WebSocket message or update state:', e);
-      }
-    }
-  }, [incomingMessage, predictionsData]);
-
-  useEffect(() => {
-    const fetchPredictions = async () => {
-      try {
-        // Using available methods from predictionService
-        const insights = await predictionService.fetchGeneralInsights();
-        // Transform insights to match the expected format
-        const predictions = insights.map(insight => ({
-          id: insight.id,
-          prediction: insight.text,
-          confidence: insight.confidence || 0,
-          timestamp: new Date().toISOString(),
-          modelVersion: insight.source
-        }));
-        
-        setPredictionsData(predictions as PredictionModel[]);
-        setError(null);
-      } catch (_err) {
-        setError('Failed to fetch predictions');
-        console.error('Error fetching predictions:', _err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchPredictions();
-  }, []);
-
-  const handleShowShapDetails = useCallback(async (eventId: string) => {
-    if (!shapDetailsCache[eventId]) {
-      setShapDetailsCache(prev => ({
-        ...prev,
-        [eventId]: { isLoading: true, error: null, visible: true }
-      }));
-
-      try {
-        // Using getPredictionDetails as an alternative
-        const data = await predictionService.getPredictionDetails(eventId);
-        setShapDetailsCache(prev => ({
-          ...prev,
-          [eventId]: { 
-            ...prev[eventId], 
-            data, 
-            isLoading: false 
-          }
-        }));
-      } catch (_err) {
-        setShapDetailsCache(prev => ({
-          ...prev,
-          [eventId]: { 
-            ...prev[eventId], 
-            error: 'Failed to load prediction details', 
-            isLoading: false 
-          }
-        }));
-      }
-    } else {
-      setShapDetailsCache(prev => ({
-        ...prev,
-        [eventId]: { 
-          ...prev[eventId], 
-          visible: !prev[eventId].visible 
-        }
-      }));
-    }
-  }, [shapDetailsCache]);
-
-  if (isLoading) {
-    return (
-      <Box alignItems="center" display="flex" justifyContent="center" minHeight="200px">
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (error) {
-    return <Alert severity="error">{error}</Alert>;
-  }
-
-  const sortedPredictions = [...predictionsData].sort((a: PredictionModel, b: PredictionModel) => 
-    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
+  const formatPrediction = (value: number) => {
+    return (value * 100).toFixed(1);
+  };
 
   return (
-    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }, gap: 3 }}>
-      <Box sx={{ gridColumn: '1 / -1' }}>
-        <Card>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Model Performance
-            </Typography>
-            {metricsData && <ModelPerformance modelMetricsData={metricsData} />}
-          </CardContent>
-        </Card>
-      </Box>
-      {sortedPredictions.map((prediction) => (
-        <Box key={prediction.id}>
-          <Card>
-            <CardContent>
-              <Typography variant="subtitle1" gutterBottom>
-                {prediction.prediction || 'No prediction available'}
-              </Typography>
-              {prediction.confidenceScore && (
-                <Typography variant="body2" color="textSecondary">
-                  Confidence: {(prediction.confidenceScore * 100).toFixed(1)}%
-                </Typography>
-              )}
-              <Typography variant="caption" display="block" color="textSecondary">
-                {new Date(prediction.timestamp).toLocaleString()}
-              </Typography>
-              <Button 
-                size="small"
-                onClick={() => handleShowShapDetails(prediction.id)}
-                disabled={shapDetailsCache[prediction.id]?.isLoading}
-                sx={{ mb: 1, mt: 1, mr: 1 }}
-                variant="outlined"
-              >
-                {shapDetailsCache[prediction.id]?.isLoading ? (
-                  <CircularProgress size={20} />
-                ) : shapDetailsCache[prediction.id]?.visible ? (
-                  'Hide Explanation'
-                ) : (
-                  'Show Explanation'
-                )}
-              </Button>
+    <div className="space-y-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+          ML Predictions
+        </h2>
 
-              {shapDetailsCache[prediction.id]?.visible && (
-                <Box border={1} borderColor="divider" borderRadius={1} mt={2} p={2}>
-                  {shapDetailsCache[prediction.id]?.isLoading && <CircularProgress />}
-                  {shapDetailsCache[prediction.id]?.error && (
-                    <Alert severity="error">{shapDetailsCache[prediction.id]?.error}</Alert>
+        {/* Generate New Prediction */}
+        <div className="mb-6">
+          <div className="flex space-x-4 mb-4">
+            <input
+              type="text"
+              placeholder="Enter Event ID"
+              value={selectedEventId}
+              onChange={(e) => setSelectedEventId(e.target.value)}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={generatePrediction}
+              disabled={!selectedEventId || isGenerating}
+              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isGenerating ? "Generating..." : "Generate Prediction"}
+            </button>
+          </div>
+        </div>
+
+        {/* Current Prediction */}
+        {selectedEventId && predictions[selectedEventId] && (
+          <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">
+              Event: {selectedEventId}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-blue-600">
+                  {formatPrediction(
+                    predictions[selectedEventId].predictedValue,
                   )}
-                  {shapDetailsCache[prediction.id]?.data && (
-                    <SHAPVisualization
-                      baseValue={shapDetailsCache[prediction.id]?.data?.baseValue}
-                      shapValues={shapDetailsCache[prediction.id]?.data?.shapValues || {}}
-                      confidence={prediction.confidenceScore}
-                    />
-                  )}
-                </Box>
-              )}
-            </CardContent>
-          </Card>
-        </Box>
-      ))}
-    </Box>
+                  %
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">
+                  Win Probability
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">
+                  {formatConfidence(predictions[selectedEventId].confidence)}%
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">
+                  Confidence
+                </div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-purple-600">
+                  {predictions[selectedEventId].factors.length}
+                </div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">
+                  Key Factors
+                </div>
+              </div>
+            </div>
+
+            {/* Key Factors */}
+            {predictions[selectedEventId].factors.length > 0 && (
+              <div className="mt-4">
+                <h4 className="font-semibold text-gray-900 dark:text-white mb-2">
+                  Key Factors
+                </h4>
+                <div className="space-y-2">
+                  {predictions[selectedEventId].factors
+                    .slice(0, 5)
+                    .map((factor, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between"
+                      >
+                        <span className="text-sm text-gray-600 dark:text-gray-300">
+                          {factor.name
+                            .replace(/_/g, " ")
+                            .replace(/\b\w/g, (l) => l.toUpperCase())}
+                        </span>
+                        <div className="flex items-center space-x-2">
+                          <div
+                            className={`w-16 h-2 rounded-full ${
+                              factor.direction === "positive"
+                                ? "bg-green-200"
+                                : "bg-red-200"
+                            }`}
+                          >
+                            <div
+                              className={`h-full rounded-full ${
+                                factor.direction === "positive"
+                                  ? "bg-green-500"
+                                  : "bg-red-500"
+                              }`}
+                              style={{
+                                width: `${Math.abs(factor.impact) * 100}%`,
+                              }}
+                            />
+                          </div>
+                          <span
+                            className={`text-sm font-medium ${
+                              factor.direction === "positive"
+                                ? "text-green-600"
+                                : "text-red-600"
+                            }`}
+                          >
+                            {factor.direction === "positive" ? "+" : "-"}
+                            {(Math.abs(factor.impact) * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Recent Predictions */}
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            Recent Predictions
+          </h3>
+          {latestPredictions.length === 0 ? (
+            <p className="text-gray-500 dark:text-gray-400 text-center py-8">
+              No predictions yet. Generate your first prediction above.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {latestPredictions.slice(0, 10).map((prediction) => (
+                <div
+                  key={prediction.id}
+                  className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                >
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-900 dark:text-white">
+                      Event {prediction.id}
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      {new Date(prediction.timestamp).toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-semibold text-blue-600">
+                      {formatPrediction(prediction.predictedValue)}%
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      {formatConfidence(prediction.confidence)}% confidence
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 };
+
+export default MLPredictions;

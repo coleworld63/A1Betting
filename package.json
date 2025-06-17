@@ -1,15 +1,10 @@
 {
   "devDependencies": {
-    "@plasmicapp/cli": "^0.1.338",
     "husky": "^9.1.7"
   },
   "dependencies": {
-    "@builder.io/cli": "^1.2.10",
     "@mui/material": "^7.1.1",
-    "@plasmicapp/loader-nextjs": "^1.0.432",
-    "@plasmicapp/react-web": "^0.2.393",
     "@tanstack/react-query": "^5.80.7",
-    "react": "^19.1.0",
     "react-router-dom": "^7.6.2"
   }
 }
