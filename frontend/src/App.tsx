@@ -20,6 +20,15 @@ import UltimateMoneyMaker from "./components/betting/UltimateMoneyMaker.tsx";
 import MoneyMakerAdvanced from "./components/MoneyMaker/MoneyMakerAdvanced.tsx";
 import UltimateMoneyMakerEnhanced from "./components/UltimateMoneyMakerEnhanced.tsx";
 
+// Enhanced Design System
+import {
+  Button,
+  Card,
+  Badge,
+  Spinner,
+} from "./components/ui/design-system.tsx";
+import { cn } from "./lib/utils.ts";
+
 // TypeScript interfaces
 interface NavigationItem {
   href: string;
