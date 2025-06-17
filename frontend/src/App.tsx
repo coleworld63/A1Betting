@@ -48,6 +48,9 @@ const UltraAccuracyOverview = lazy(
 const RevolutionaryAccuracyInterface = lazy(
   () => import("./components/revolutionary/RevolutionaryAccuracyInterface.tsx"),
 );
+const EnhancedRevolutionaryInterface = lazy(
+  () => import("./components/revolutionary/EnhancedRevolutionaryInterface.tsx"),
+);
 
 // TypeScript interfaces
 interface NavigationItem {
