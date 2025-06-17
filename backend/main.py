@@ -217,15 +217,27 @@ async def startup_event():
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Cleanup on shutdown"""
-    logger.info("Shutting down A1Betting backend services...")
+    """Cleanup ultra-enhanced services on shutdown"""
+    logger.info("Shutting down A1Betting Ultra-Enhanced Backend...")
 
     try:
+        # Shutdown real-time stream manager
+        await real_time_stream_manager.shutdown()
+        logger.info("✅ Real-time stream manager shut down")
+
+        # Shutdown data pipeline
         await data_pipeline.shutdown()
-        await db_manager.async_engine.dispose() if db_manager.async_engine else None
-        logger.info("Services shut down successfully")
+        logger.info("✅ Data pipeline shut down")
+
+        # Dispose database connections
+        if db_manager.async_engine:
+            await db_manager.async_engine.dispose()
+        logger.info("✅ Database connections closed")
+
+        logger.info("🔴 All ultra-enhanced services shut down successfully")
+
     except Exception as e:
-        logger.error(f"Error during shutdown: {str(e)}")
+        logger.error(f"❌ Error during shutdown: {str(e)}")
 
 # Health check endpoints
 @app.get("/health", response_model=HealthCheckResponse)
