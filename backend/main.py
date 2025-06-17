@@ -61,8 +61,8 @@ logger = logging.getLogger(__name__)
 # Initialize FastAPI app with enhanced configuration
 app = FastAPI(
     title="A1Betting Ultra-Enhanced Backend",
-    description="Advanced AI-powered sports betting analytics platform with real-time data, ensemble ML models, and comprehensive monitoring",
-    version="2.0.0",
+    description="Ultimate AI-powered sports betting analytics platform with intelligent ensemble models, real-time processing, and multi-source data integration",
+    version="3.0.0",
     docs_url="/docs" if config.debug else None,
     redoc_url="/redoc" if config.debug else None,
     openapi_url="/openapi.json" if config.debug else None
