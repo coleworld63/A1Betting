@@ -45,6 +45,9 @@ const QuantumPredictionsInterface = lazy(
 const UltraAccuracyOverview = lazy(
   () => import("./components/overview/UltraAccuracyOverview.tsx"),
 );
+const RevolutionaryAccuracyInterface = lazy(
+  () => import("./components/revolutionary/RevolutionaryAccuracyInterface.tsx"),
+);
 
 // TypeScript interfaces
 interface NavigationItem {
