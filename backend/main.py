@@ -303,6 +303,34 @@ async def health_check():
             }
         )
 
+        # Check ultra risk management engine
+        risk_health = await ultra_risk_engine.get_risk_management_health()
+        services["ultra_risk_management"] = HealthStatus(
+            service="ultra_risk_management",
+            status=risk_health["status"],
+            response_time=0.0,
+            details={
+                "kelly_engine": risk_health["kelly_engine_status"],
+                "risk_assessor": risk_health["risk_assessor_status"],
+                "portfolio_optimizer": risk_health["portfolio_optimizer_status"],
+                "position_history_size": risk_health["position_history_size"]
+            }
+        )
+
+        # Check ultra arbitrage engine
+        arbitrage_health = await ultra_arbitrage_engine.get_engine_health()
+        services["ultra_arbitrage"] = HealthStatus(
+            service="ultra_arbitrage",
+            status=arbitrage_health["status"],
+            response_time=0.0,
+            details={
+                "opportunities_detected": arbitrage_health["performance_metrics"]["opportunities_detected"],
+                "opportunity_history_size": arbitrage_health["opportunity_history_size"],
+                "arbitrage_calculator": arbitrage_health["arbitrage_calculator_status"],
+                "inefficiency_detector": arbitrage_health["inefficiency_detector_status"]
+            }
+        )
+
         # Check model service (legacy)
         model_health = await model_service.get_model_health()
         services["model_service"] = HealthStatus(
