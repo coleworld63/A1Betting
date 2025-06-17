@@ -29,6 +29,17 @@ import {
 } from "./components/ui/design-system.tsx";
 import { cn } from "./lib/utils.ts";
 
+// Ultra-Advanced Accuracy Components
+const UltraAdvancedMLDashboard = lazy(
+  () => import("./components/ml/UltraAdvancedMLDashboard.tsx"),
+);
+const AdvancedConfidenceVisualizer = lazy(
+  () => import("./components/prediction/AdvancedConfidenceVisualizer.tsx"),
+);
+const RealTimeAccuracyDashboard = lazy(
+  () => import("./components/analytics/RealTimeAccuracyDashboard.tsx"),
+);
+
 // TypeScript interfaces
 interface NavigationItem {
   href: string;
