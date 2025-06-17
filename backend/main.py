@@ -158,38 +158,61 @@ app_start_time = time.time()
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize services on startup"""
-    logger.info("Starting A1Betting backend services...")
+    """Initialize ultra-enhanced services on startup"""
+    logger.info("Starting A1Betting Ultra-Enhanced Backend v3.0...")
 
     try:
         # Initialize database
         await db_manager.initialize()
-        logger.info("Database initialized")
+        logger.info("✅ Database initialized")
 
-        # Initialize data pipeline
+        # Initialize ultra data source manager
+        await ultra_data_manager.initialize()
+        logger.info("✅ Ultra data source manager initialized")
+
+        # Initialize ultra ensemble engine
+        await ultra_ensemble_engine.initialize()
+        logger.info("✅ Ultra ensemble engine initialized")
+
+        # Initialize real-time stream manager
+        await real_time_stream_manager.initialize()
+        logger.info("✅ Real-time stream manager initialized")
+
+        # Initialize legacy data pipeline (for backward compatibility)
         await data_pipeline.initialize()
-        logger.info("Data pipeline initialized")
+        logger.info("✅ Legacy data pipeline initialized")
 
         # Initialize model service
         await model_service.initialize()
-        logger.info("Model service initialized")
+        logger.info("✅ Model service initialized")
 
-        # Initialize feature flags
+        # Initialize feature flags with enhanced features
         feature_flags = FeatureFlags.get_instance()
         feature_flags.initialize({
             'features': [
                 {"id": "betting_opportunities", "enabled": True},
                 {"id": "real_time_predictions", "enabled": True},
-                {"id": "advanced_analytics", "enabled": True}
+                {"id": "advanced_analytics", "enabled": True},
+                {"id": "ultra_ensemble", "enabled": True},
+                {"id": "multi_source_data", "enabled": True},
+                {"id": "intelligent_model_selection", "enabled": True},
+                {"id": "dynamic_weighting", "enabled": True},
+                {"id": "real_time_streams", "enabled": True},
+                {"id": "prediction_triggers", "enabled": True},
+                {"id": "advanced_reconciliation", "enabled": True}
             ],
-            'experiments': []
+            'experiments': [
+                {"id": "meta_learning", "enabled": True, "traffic_allocation": 0.1},
+                {"id": "bayesian_model_selection", "enabled": True, "traffic_allocation": 0.2}
+            ]
         })
-        logger.info("Feature flags initialized")
+        logger.info("✅ Enhanced feature flags initialized")
 
-        logger.info("All services initialized successfully")
+        logger.info("🚀 All ultra-enhanced services initialized successfully!")
+        logger.info("💡 A1Betting is now running at maximum performance")
 
     except Exception as e:
-        logger.error(f"Failed to initialize services: {str(e)}")
+        logger.error(f"❌ Failed to initialize services: {str(e)}")
         raise
 
 @app.on_event("shutdown")
