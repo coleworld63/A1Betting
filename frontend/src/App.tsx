@@ -291,8 +291,13 @@ const navigationConfig: NavigationGroup[] = [
     group: "Ultra-Accuracy Suite",
     items: [
       {
+        href: "#/ultra-accuracy-overview",
+        label: "🎯 Accuracy Overview",
+        color: "text-purple-600",
+      },
+      {
         href: "#/ultra-ml-dashboard",
-        label: "🎯 Ultra ML Dashboard",
+        label: "🧠 Ultra ML Dashboard",
         color: "text-purple-600",
       },
       {
