@@ -34,7 +34,7 @@ export class UnifiedErrorService extends BaseService {
 
   private constructor(registry: UnifiedServiceRegistry) {
     super("error", registry);
-    this.config = UnifiedConfigManager.getInstance();
+    this.config = UnifiedConfig.getInstance();
     this.logger = UnifiedLogger.getInstance();
     this.cache = UnifiedCache.getInstance();
   }
