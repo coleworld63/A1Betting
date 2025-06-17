@@ -559,6 +559,309 @@ async def fetch_multi_source_data(
         logger.error(f"Multi-source data fetch failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Ultra Risk Management Endpoints
+@app.post("/api/v3/risk/position-size")
+async def calculate_optimal_position_size(
+    opportunity: Dict[str, Any],
+    bankroll: float,
+    existing_positions: List[Dict[str, Any]] = [],
+    risk_tolerance: str = "moderate"
+):
+    """Calculate optimal position size with comprehensive risk management"""
+    try:
+        risk_level = RiskLevel(risk_tolerance)
+
+        position_size = await ultra_risk_engine.calculate_optimal_position_size(
+            opportunity=opportunity,
+            bankroll=bankroll,
+            existing_positions=existing_positions,
+            risk_tolerance=risk_level
+        )
+
+        return {
+            "position_sizing": {
+                "recommended_stake": position_size.recommended_stake,
+                "max_stake": position_size.max_stake,
+                "min_stake": position_size.min_stake,
+                "kelly_stake": position_size.kelly_stake,
+                "risk_adjusted_stake": position_size.risk_adjusted_stake,
+                "confidence": position_size.confidence
+            },
+            "risk_analysis": {
+                "expected_value": position_size.expected_value,
+                "expected_return": position_size.expected_return,
+                "risk_metrics": {
+                    "value_at_risk_95": position_size.risk_metrics.value_at_risk_95,
+                    "max_drawdown": position_size.risk_metrics.max_drawdown,
+                    "sharpe_ratio": position_size.risk_metrics.sharpe_ratio,
+                    "bankruptcy_probability": position_size.risk_metrics.bankruptcy_probability,
+                    "risk_score": position_size.risk_metrics.risk_score
+                }
+            },
+            "constraints_applied": position_size.constraints,
+            "reasoning": position_size.reasoning,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid risk tolerance: {risk_tolerance}")
+    except Exception as e:
+        logger.error(f"Position sizing failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/v3/risk/portfolio-analysis")
+async def analyze_portfolio_risk(
+    positions: List[Dict[str, Any]],
+    bankroll: float,
+    historical_returns: List[float] = []
+):
+    """Comprehensive portfolio risk analysis"""
+    try:
+        risk_metrics = await ultra_risk_engine.risk_assessor.assess_portfolio_risk(
+            positions=positions,
+            bankroll=bankroll,
+            historical_returns=historical_returns
+        )
+
+        return {
+            "portfolio_risk": {
+                "overall_risk_score": risk_metrics.risk_score,
+                "value_at_risk": {
+                    "var_95": risk_metrics.value_at_risk_95,
+                    "var_99": risk_metrics.value_at_risk_99,
+                    "expected_shortfall_95": risk_metrics.expected_shortfall_95
+                },
+                "performance_metrics": {
+                    "sharpe_ratio": risk_metrics.sharpe_ratio,
+                    "sortino_ratio": risk_metrics.sortino_ratio,
+                    "calmar_ratio": risk_metrics.calmar_ratio,
+                    "max_drawdown": risk_metrics.max_drawdown
+                },
+                "risk_factors": {
+                    "correlation_risk": risk_metrics.correlation_risk,
+                    "liquidity_risk": risk_metrics.liquidity_risk,
+                    "model_risk": risk_metrics.model_risk
+                },
+                "bankruptcy_analysis": {
+                    "bankruptcy_probability": risk_metrics.bankruptcy_probability,
+                    "time_to_ruin": risk_metrics.time_to_ruin
+                },
+                "kelly_analysis": {
+                    "kelly_fraction": risk_metrics.kelly_fraction
+                },
+                "confidence_interval": {
+                    "lower": risk_metrics.confidence_interval[0],
+                    "upper": risk_metrics.confidence_interval[1]
+                }
+            },
+            "recommendations": {
+                "risk_level": "high" if risk_metrics.risk_score > 70 else "moderate" if risk_metrics.risk_score > 40 else "low",
+                "action_required": risk_metrics.risk_score > 80,
+                "diversification_needed": risk_metrics.correlation_risk > 0.6
+            },
+            "timestamp": risk_metrics.last_updated.isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Portfolio risk analysis failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/v3/portfolio/optimize")
+async def optimize_portfolio(
+    opportunities: List[Dict[str, Any]],
+    bankroll: float,
+    risk_tolerance: str = "moderate",
+    optimization_method: str = "mean_variance"
+):
+    """Advanced portfolio optimization across betting opportunities"""
+    try:
+        risk_level = RiskLevel(risk_tolerance)
+
+        optimization = await ultra_risk_engine.portfolio_optimizer.optimize_portfolio(
+            opportunities=opportunities,
+            bankroll=bankroll,
+            risk_tolerance=risk_level,
+            method=optimization_method
+        )
+
+        return {
+            "optimization_results": {
+                "optimal_weights": optimization.optimal_weights,
+                "expected_return": optimization.expected_return,
+                "portfolio_variance": optimization.portfolio_variance,
+                "sharpe_ratio": optimization.sharpe_ratio,
+                "diversification_ratio": optimization.diversification_ratio
+            },
+            "risk_analysis": {
+                "risk_contributions": optimization.risk_contribution,
+                "marginal_risk": optimization.marginal_risk
+            },
+            "execution_details": {
+                "optimization_method": optimization.optimization_method,
+                "constraints_satisfied": optimization.constraints_satisfied,
+                "objective_value": optimization.objective_value
+            },
+            "metadata": optimization.metadata,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid parameters: {str(e)}")
+    except Exception as e:
+        logger.error(f"Portfolio optimization failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Ultra Arbitrage Detection Endpoints
+@app.post("/api/v3/arbitrage/scan")
+async def scan_arbitrage_opportunities(
+    market_data: List[Dict[str, Any]],
+    historical_data: Optional[List[Dict[str, Any]]] = None,
+    min_profit_percentage: float = 1.0
+):
+    """Comprehensive arbitrage and market inefficiency scanning"""
+    try:
+        opportunities = await ultra_arbitrage_engine.scan_for_opportunities(
+            market_data=market_data,
+            historical_data=historical_data
+        )
+
+        # Filter by minimum profit
+        filtered_arbitrage = [
+            arb for arb in opportunities["arbitrage_opportunities"]
+            if arb.profit_percentage >= min_profit_percentage
+        ]
+
+        filtered_inefficiencies = [
+            ineff for ineff in opportunities["market_inefficiencies"]
+            if ineff.value_bet_edge >= min_profit_percentage
+        ]
+
+        return {
+            "arbitrage_opportunities": [
+                {
+                    "id": arb.id,
+                    "type": arb.arbitrage_type.value,
+                    "sportsbooks": arb.sportsbooks,
+                    "event_id": arb.event_id,
+                    "market_type": arb.market_type,
+                    "profit_analysis": {
+                        "guaranteed_profit": arb.guaranteed_profit,
+                        "profit_percentage": arb.profit_percentage,
+                        "roi": arb.roi,
+                        "total_stake_required": arb.total_stake_required
+                    },
+                    "execution": {
+                        "stake_distribution": arb.stake_distribution,
+                        "optimal_stakes": arb.optimal_stakes,
+                        "execution_window": arb.execution_window.total_seconds(),
+                        "confidence_score": arb.confidence_score
+                    },
+                    "risk_assessment": {
+                        "execution_risk": arb.execution_risk,
+                        "liquidity_risk": arb.liquidity_risk,
+                        "timing_risk": arb.timing_risk,
+                        "credit_risk": arb.credit_risk
+                    },
+                    "market_data": arb.odds_data,
+                    "detection_time": arb.detection_time.isoformat(),
+                    "expiry_time": arb.expiry_time.isoformat() if arb.expiry_time else None
+                }
+                for arb in filtered_arbitrage
+            ],
+            "market_inefficiencies": [
+                {
+                    "id": ineff.id,
+                    "type": ineff.inefficiency_type.value,
+                    "event_id": ineff.event_id,
+                    "market_type": ineff.market_type,
+                    "sportsbook": ineff.sportsbook,
+                    "pricing_analysis": {
+                        "market_price": ineff.market_price,
+                        "fair_value": ineff.fair_value,
+                        "mispricing_magnitude": ineff.mispricing_magnitude,
+                        "value_bet_edge": ineff.value_bet_edge
+                    },
+                    "statistical_analysis": {
+                        "z_score": ineff.z_score,
+                        "confidence_interval": {
+                            "lower": ineff.confidence_interval[0],
+                            "upper": ineff.confidence_interval[1]
+                        },
+                        "statistical_significance": ineff.statistical_significance,
+                        "sample_size": ineff.sample_size
+                    },
+                    "market_context": {
+                        "market_volume": ineff.market_volume,
+                        "liquidity_score": ineff.liquidity_score,
+                        "public_betting_percentage": ineff.public_betting_percentage,
+                        "sharp_money_percentage": ineff.sharp_money_percentage,
+                        "line_movement_direction": ineff.line_movement_direction
+                    },
+                    "betting_recommendation": {
+                        "expected_value": ineff.expected_value,
+                        "kelly_fraction": ineff.kelly_fraction,
+                        "recommended_stake": ineff.recommended_stake,
+                        "max_stake": ineff.max_stake
+                    },
+                    "risk_assessment": {
+                        "model_uncertainty": ineff.model_uncertainty,
+                        "information_risk": ineff.information_risk,
+                        "execution_risk": ineff.execution_risk
+                    },
+                    "timing": {
+                        "detection_time": ineff.detection_time.isoformat(),
+                        "window_expiry": ineff.window_expiry.isoformat() if ineff.window_expiry else None,
+                        "urgency_score": ineff.urgency_score
+                    },
+                    "metadata": ineff.metadata
+                }
+                for ineff in filtered_inefficiencies
+            ],
+            "summary": {
+                "total_arbitrage_opportunities": len(filtered_arbitrage),
+                "total_market_inefficiencies": len(filtered_inefficiencies),
+                "best_arbitrage_profit": max([arb.profit_percentage for arb in filtered_arbitrage], default=0),
+                "best_inefficiency_edge": max([ineff.value_bet_edge for ineff in filtered_inefficiencies], default=0),
+                "total_opportunities": len(filtered_arbitrage) + len(filtered_inefficiencies)
+            },
+            "scan_metadata": {
+                "scan_timestamp": opportunities["scan_timestamp"],
+                "markets_analyzed": len(market_data),
+                "historical_data_points": len(historical_data) if historical_data else 0,
+                "min_profit_filter": min_profit_percentage
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Arbitrage scan failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v3/arbitrage/health")
+async def get_arbitrage_engine_health():
+    """Get arbitrage engine health and performance metrics"""
+    try:
+        health = await ultra_arbitrage_engine.get_engine_health()
+        return {
+            "arbitrage_engine_health": health,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Arbitrage engine health check failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v3/risk/health")
+async def get_risk_management_health():
+    """Get risk management engine health"""
+    try:
+        health = await ultra_risk_engine.get_risk_management_health()
+        return {
+            "risk_management_health": health,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Risk management health check failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Data pipeline endpoints
 @app.post("/api/v2/data/fetch")
 async def fetch_data_endpoint(request: DataPipelineRequest):
