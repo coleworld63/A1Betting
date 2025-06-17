@@ -646,6 +646,65 @@ const App: React.FC = () => {
           </RouteWrapper>
         );
 
+      // Ultra-Advanced Accuracy Suite
+      case "/ultra-ml-dashboard":
+        return (
+          <RouteWrapper routeName="Ultra ML Dashboard">
+            <SuspenseWrapper loadingMessage="Initializing Ultra-Advanced ML Dashboard...">
+              <UltraAdvancedMLDashboard />
+            </SuspenseWrapper>
+          </RouteWrapper>
+        );
+      case "/confidence-visualizer":
+        return (
+          <RouteWrapper routeName="Confidence Visualizer">
+            <SuspenseWrapper loadingMessage="Loading Advanced Confidence Analysis...">
+              <AdvancedConfidenceVisualizer />
+            </SuspenseWrapper>
+          </RouteWrapper>
+        );
+      case "/accuracy-monitor":
+        return (
+          <RouteWrapper routeName="Accuracy Monitor">
+            <SuspenseWrapper loadingMessage="Connecting to Real-time Accuracy Monitor...">
+              <RealTimeAccuracyDashboard />
+            </SuspenseWrapper>
+          </RouteWrapper>
+        );
+      case "/quantum-predictions":
+        return (
+          <RouteWrapper routeName="Quantum Predictions">
+            <SuspenseWrapper loadingMessage="Initializing Quantum Prediction Engine...">
+              <div className="p-6">
+                <Card className="max-w-4xl mx-auto">
+                  <div className="text-center p-8">
+                    <div className="text-6xl mb-4">⚛️</div>
+                    <h1 className="text-3xl font-bold text-gray-900 mb-4">
+                      Quantum Prediction Engine
+                    </h1>
+                    <p className="text-gray-600 mb-6">
+                      Advanced quantum-inspired predictions with superposition
+                      and entanglement analysis
+                    </p>
+                    <div className="bg-gradient-to-r from-purple-100 to-blue-100 p-6 rounded-lg">
+                      <h3 className="text-lg font-semibold text-purple-800 mb-2">
+                        Coming Soon: Quantum Features
+                      </h3>
+                      <ul className="text-purple-700 space-y-2 text-left max-w-md mx-auto">
+                        <li>• Quantum superposition-based ensemble modeling</li>
+                        <li>• Entangled feature analysis</li>
+                        <li>• Quantum coherence optimization</li>
+                        <li>• Decoherence-resistant predictions</li>
+                        <li>• Quantum advantage quantification</li>
+                      </ul>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            </SuspenseWrapper>
+          </RouteWrapper>
+        );
+
       // Advanced Tools & Simulators
       case "/what-if":
         return (
