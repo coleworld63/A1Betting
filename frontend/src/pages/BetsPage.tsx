@@ -1,4 +1,8 @@
 import React from 'react';
+import GlassCard from '../components/ui/GlassCard';
+import GlowButton from '../components/ui/GlowButton';
+import Tooltip from '../components/ui/Tooltip';
+import EnhancedPropCard from '../components/ui/EnhancedPropCard';
 import { UnifiedBettingInterface } from '../components/betting/UnifiedBettingInterface';
 import { LiveOddsTicker } from '../components/betting/LiveOddsTicker';
 import { RiskProfileSelector } from '../components/betting/RiskProfileSelector';
@@ -42,53 +46,66 @@ const BetsPage: React.FC = () => {
   return (
     <ToastProvider>
       <ErrorBoundary>
-        <div className="p-4 md:p-6 lg:p-8 bg-gradient-to-br from-green-900/80 to-green-700/80 min-h-screen dark:bg-gradient-to-br dark:from-gray-900 dark:to-gray-800 transition-colors">
-          <React.Suspense fallback={<LoadingSkeleton />}>
-            <section className="glass-card rounded-2xl shadow-xl p-6 mb-8 animate-fade-in animate-scale-in">
-              <h2 className="text-2xl font-bold text-green-100 mb-4">Betting Interface</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <RiskProfileSelector currentProfile={riskProfile} onProfileChange={setRiskProfile} />
-                  <StakeSizingControl onStakeChange={setStake} defaultStake={stake} />
-                  <LiveOddsTicker events={events} onEventSelect={setSelectedEvent} loading={loading} error={error ? { message: error } : null} />
-                </div>
-                <div className="space-y-4">
-                  <UnifiedBettingInterface initialBankroll={1000} onBetPlaced={() => {}} darkMode={true} />
-                  <BetsTable />
-                  <BetSlip />
-                  <BetHistoryChart />
-                  {/* Alpha1 Advanced Widgets */}
-                  <React.Suspense fallback={<LoadingSpinner />}>
-                    <div className="mt-4">
-                      <ConfidenceBands lower={40} upper={72} mean={56} />
-                      <span className="tooltip">Model confidence interval (hover for details)</span>
-                    </div>
-                    <div className="mt-4">
-                      <RiskHeatMap riskScores={[0.3, 0.7, 0.9]} />
-                      <span className="tooltip">Risk heat map (hover for details)</span>
-                    </div>
-                    <div className="mt-4">
-                      <SourceHealthBar sources={[
-                        { name: 'Sportradar', healthy: true },
-                        { name: 'Weather', healthy: true },
-                        { name: 'Injury', healthy: true },
-                      ]} />
-                      <span className="tooltip">Source health status (hover for details)</span>
-                    </div>
-                    <div className="mt-4">
-                      <WhatIfSimulator />
-                      <span className="tooltip">What-if scenario simulator (hover for details)</span>
-                    </div>
-                  </React.Suspense>
-                  {/* Personalization overlay example */}
-                  <div className="mt-4">
-                    {/* TODO: Personalization overlays from userPersonalizationService */}
-                    {/* {userPersonalizationService.getOverlay()} */}
-                  </div>
-                </div>
+        <div className="p-6 space-y-8 min-h-screen bg-gradient-to-br from-green-900/80 to-green-700/80 dark:from-gray-900 dark:to-gray-800 transition-colors">
+          <GlassCard className="mb-8">
+            <h2 className="text-2xl font-bold text-green-900 dark:text-green-100 mb-4">Betting Interface</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <RiskProfileSelector currentProfile={riskProfile} onProfileChange={setRiskProfile} />
+                <StakeSizingControl onStakeChange={setStake} defaultStake={stake} />
+                <LiveOddsTicker events={events} onEventSelect={setSelectedEvent} loading={loading} error={error ? { message: error } : null} />
               </div>
-            </section>
-          </React.Suspense>
+              <div className="space-y-4">
+                <UnifiedBettingInterface initialBankroll={1000} onBetPlaced={() => {}} darkMode={true} />
+                <GlassCard className="p-4">
+                  <h3 className="font-semibold mb-2">Your Bet Slip</h3>
+                  {/* Example: Render EnhancedPropCard for each bet in slip */}
+                  {/* Replace with real bet slip data */}
+                  <EnhancedPropCard
+                    playerName="LeBron James"
+                    team="LAL"
+                    position="F"
+                    statType="Points"
+                    line={27.5}
+                    overOdds={1.8}
+                    underOdds={1.9}
+                    pickType="normal"
+                    trendValue={156}
+                    gameInfo={{ opponent: 'BOS', day: 'Fri', time: '7:30pm' }}
+                    playerImageUrl="https://cdn.nba.com/headshots/nba/latest/1040x760/2544.png"
+                    onSelect={() => {}}
+                    onViewDetails={() => {}}
+                  />
+                  <GlowButton className="w-full mt-4">Place Bet</GlowButton>
+                </GlassCard>
+                <BetsTable />
+                <BetHistoryChart />
+              </div>
+            </div>
+          </GlassCard>
+          {/* Advanced Widgets */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <GlassCard>
+              <ConfidenceBands lower={42} upper={68} mean={55} />
+              <Tooltip content="Model confidence interval (hover for details)"><span className="text-xs text-gray-400 ml-2">?</span></Tooltip>
+            </GlassCard>
+            <GlassCard>
+              <RiskHeatMap riskScores={[0.2, 0.6, 0.7]} />
+              <Tooltip content="Risk heat map (hover for details)"><span className="text-xs text-gray-400 ml-2">?</span></Tooltip>
+            </GlassCard>
+            <GlassCard>
+              <SourceHealthBar sources={[
+                { name: 'Sportradar', healthy: true },
+                { name: 'Weather', healthy: true },
+                { name: 'Injury', healthy: false },
+              ]} />
+              <Tooltip content="Source health status (hover for details)"><span className="text-xs text-gray-400 ml-2">?</span></Tooltip>
+            </GlassCard>
+            <GlassCard>
+              <WhatIfSimulator />
+              <Tooltip content="What-if scenario simulator (hover for details)"><span className="text-xs text-gray-400 ml-2">?</span></Tooltip>
+            </GlassCard>
+          </div>
         </div>
       </ErrorBoundary>
     </ToastProvider>

@@ -1,40 +1,13 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Grid,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  IconButton,
-  Chip,
-  Button,
-  CircularProgress,
-} from '@mui/material';
-import {
-  MoreVert as MoreVertIcon,
-  TrendingUp as TrendingUpIcon,
-  TrendingDown as TrendingDownIcon,
-  FilterList as FilterListIcon,
-} from '@mui/icons-material';
-import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
+import GlassCard from '../components/ui/GlassCard';
+import GlowButton from '../components/ui/GlowButton';
+import Tooltip from '../components/ui/Tooltip';
 import { analyticsService } from '@/services/analytics';
 import { ErrorMessage } from '@/components/common/ErrorMessage';
+import { useQuery } from '@tanstack/react-query';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 
 const timeRanges = [
   { value: '7', label: 'Last 7 days' },
@@ -48,43 +21,27 @@ const Trends: React.FC = () => {
   const [selectedMarket, setSelectedMarket] = useState('all');
   const [selectedTimeRange, setSelectedTimeRange] = useState('30');
 
-  const {
-    data: performanceData,
-    isLoading: performanceLoading,
-    error: performanceError,
-  } = useQuery({
+  const { data: performanceData, isLoading: performanceLoading, error: performanceError } = useQuery({
     queryKey: ['performance', selectedTimeRange],
     queryFn: () => analyticsService.getPerformanceTrends(selectedTimeRange),
   });
-
-  const {
-    data: sportsData,
-    isLoading: sportsLoading,
-    error: sportsError,
-  } = useQuery({
+  const { data: sportsData, isLoading: sportsLoading, error: sportsError } = useQuery({
     queryKey: ['sports', selectedSport, selectedTimeRange],
     queryFn: () => analyticsService.getSportsDistribution(selectedSport, selectedTimeRange),
   });
-
-  const {
-    data: marketsData,
-    isLoading: marketsLoading,
-    error: marketsError,
-  } = useQuery({
+  const { data: marketsData, isLoading: marketsLoading, error: marketsError } = useQuery({
     queryKey: ['markets', selectedMarket, selectedTimeRange],
     queryFn: () => analyticsService.getMarketsDistribution(selectedMarket, selectedTimeRange),
   });
 
-  const handleSportChange = (event: React.ChangeEvent<{ value: unknown }>) => {
-    setSelectedSport(event.target.value as string);
+  const handleSportChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedSport(event.target.value);
   };
-
-  const handleMarketChange = (event: React.ChangeEvent<{ value: unknown }>) => {
-    setSelectedMarket(event.target.value as string);
+  const handleMarketChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedMarket(event.target.value);
   };
-
-  const handleTimeRangeChange = (event: React.ChangeEvent<{ value: unknown }>) => {
-    setSelectedTimeRange(event.target.value as string);
+  const handleTimeRangeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectedTimeRange(event.target.value);
   };
 
   if (performanceError || sportsError || marketsError) {
@@ -92,165 +49,115 @@ const Trends: React.FC = () => {
   }
 
   return (
-    <Box sx={{ flexGrow: 1, p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">Trends</Typography>
-        <FormControl sx={{ minWidth: 200 }}>
-          <InputLabel>Time Period</InputLabel>
-          <Select label="Time Period" value={selectedTimeRange} onChange={handleTimeRangeChange}>
+    <div className="p-6 min-h-screen bg-gradient-to-br from-purple-100 to-blue-50 dark:from-gray-900 dark:to-blue-950">
+      <GlassCard className="mb-8">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+          <h1 className="text-2xl font-bold text-blue-900 dark:text-blue-100">Trends</h1>
+          <select className="modern-input" value={selectedTimeRange} onChange={handleTimeRangeChange}>
             {timeRanges.map(range => (
-              <MenuItem key={range.value} value={range.value}>
-                {range.label}
-              </MenuItem>
+              <option key={range.value} value={range.value}>{range.label}</option>
             ))}
-          </Select>
-        </FormControl>
-      </Box>
-
-      <Grid container spacing={3}>
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="h6">Performance Trends</Typography>
-                <IconButton>
-                  <MoreVertIcon />
-                </IconButton>
-              </Box>
-              {performanceLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-                  <CircularProgress />
-                </Box>
-              ) : (
-                <Box sx={{ height: 400 }}>
-                  <ResponsiveContainer height="100%" width="100%">
-                    <LineChart data={performanceData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="timestamp" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Line dataKey="value" stroke="#8884d8" strokeWidth={2} type="monotone" />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item md={6} xs={12}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="h6">Sports Distribution</Typography>
-                <FormControl sx={{ minWidth: 150 }}>
-                  <Select size="small" value={selectedSport} onChange={handleSportChange}>
-                    <MenuItem value="all">All Sports</MenuItem>
-                    <MenuItem value="football">Football</MenuItem>
-                    <MenuItem value="basketball">Basketball</MenuItem>
-                    <MenuItem value="tennis">Tennis</MenuItem>
-                  </Select>
-                </FormControl>
-              </Box>
-              {sportsLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-                  <CircularProgress />
-                </Box>
-              ) : (
-                <Box sx={{ height: 300 }}>
-                  <ResponsiveContainer height="100%" width="100%">
-                    <BarChart data={sportsData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="value" fill="#82ca9d" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item md={6} xs={12}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                <Typography variant="h6">Market Distribution</Typography>
-                <FormControl sx={{ minWidth: 150 }}>
-                  <Select size="small" value={selectedMarket} onChange={handleMarketChange}>
-                    <MenuItem value="all">All Markets</MenuItem>
-                    <MenuItem value="match-winner">Match Winner</MenuItem>
-                    <MenuItem value="over-under">Over/Under</MenuItem>
-                    <MenuItem value="btts">Both Teams to Score</MenuItem>
-                  </Select>
-                </FormControl>
-              </Box>
-              {marketsLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-                  <CircularProgress />
-                </Box>
-              ) : (
-                <Box sx={{ height: 300 }}>
-                  <ResponsiveContainer height="100%" width="100%">
-                    <BarChart data={marketsData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="value" fill="#8884d8" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12}>
-          <Card>
-            <CardContent>
-              <Typography gutterBottom variant="h6">
-                Key Insights
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item md={4} xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <TrendingUpIcon color="success" />
-                    <Box>
-                      <Typography variant="subtitle2">Most Profitable Sport</Typography>
-                      <Typography variant="body1">Football</Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-                <Grid item md={4} xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <TrendingDownIcon color="error" />
-                    <Box>
-                      <Typography variant="subtitle2">Least Profitable Market</Typography>
-                      <Typography variant="body1">Handicap</Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-                <Grid item md={4} xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <TrendingUpIcon color="success" />
-                    <Box>
-                      <Typography variant="subtitle2">Best Time to Bet</Typography>
-                      <Typography variant="body1">Weekend Matches</Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-    </Box>
+          </select>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <GlassCard>
+            <h2 className="text-lg font-semibold mb-2">Performance Trends</h2>
+            {performanceLoading ? (
+              <div className="flex justify-center items-center h-64"><span>Loading...</span></div>
+            ) : (
+              <div className="h-64">
+                <ResponsiveContainer height="100%" width="100%">
+                  <LineChart data={performanceData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="timestamp" />
+                    <YAxis />
+                    <RechartsTooltip />
+                    <Legend />
+                    <Line dataKey="value" stroke="#8884d8" strokeWidth={2} type="monotone" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </GlassCard>
+          <GlassCard>
+            <h2 className="text-lg font-semibold mb-2">Sports Distribution</h2>
+            <select className="modern-input mb-2" value={selectedSport} onChange={handleSportChange}>
+              <option value="all">All Sports</option>
+              <option value="football">Football</option>
+              <option value="basketball">Basketball</option>
+              <option value="tennis">Tennis</option>
+            </select>
+            {sportsLoading ? (
+              <div className="flex justify-center items-center h-64"><span>Loading...</span></div>
+            ) : (
+              <div className="h-64">
+                <ResponsiveContainer height="100%" width="100%">
+                  <BarChart data={sportsData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <RechartsTooltip />
+                    <Legend />
+                    <Bar dataKey="value" fill="#82ca9d" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </GlassCard>
+          <GlassCard>
+            <h2 className="text-lg font-semibold mb-2">Market Distribution</h2>
+            <select className="modern-input mb-2" value={selectedMarket} onChange={handleMarketChange}>
+              <option value="all">All Markets</option>
+              <option value="match-winner">Match Winner</option>
+              <option value="over-under">Over/Under</option>
+              <option value="btts">Both Teams to Score</option>
+            </select>
+            {marketsLoading ? (
+              <div className="flex justify-center items-center h-64"><span>Loading...</span></div>
+            ) : (
+              <div className="h-64">
+                <ResponsiveContainer height="100%" width="100%">
+                  <BarChart data={marketsData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <RechartsTooltip />
+                    <Legend />
+                    <Bar dataKey="value" fill="#8884d8" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </GlassCard>
+        </div>
+        <GlassCard>
+          <h2 className="text-lg font-semibold mb-4">Key Insights</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="flex items-center gap-3">
+              <TrendingUpIcon className="text-green-500" />
+              <div>
+                <div className="font-medium">Most Profitable Sport</div>
+                <div>Football</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <TrendingDownIcon className="text-red-500" />
+              <div>
+                <div className="font-medium">Least Profitable Market</div>
+                <div>Handicap</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <TrendingUpIcon className="text-green-500" />
+              <div>
+                <div className="font-medium">Best Time to Bet</div>
+                <div>Weekend Matches</div>
+              </div>
+            </div>
+          </div>
+        </GlassCard>
+      </GlassCard>
+    </div>
   );
 };
 

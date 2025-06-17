@@ -1,15 +1,8 @@
 import React from 'react';
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Chip,
-  CircularProgress,
-  Alert,
-  Stack,
-} from '@mui/material';
+import GlassCard from '../ui/GlassCard';
+import EnhancedPropCard from '../ui/EnhancedPropCard';
+import GlowButton from '../ui/GlowButton';
+import Tooltip from '../ui/Tooltip';
 import { BetRecommendation, BettingAlert, BettingOpportunity } from '../../types/betting';
 import { formatCurrency, formatPercentage, formatOdds } from '../../utils/formatters';
 
@@ -28,17 +21,19 @@ export const BettingOpportunities: React.FC<BettingOpportunitiesProps> = ({
 }) => {
   if (isLoading) {
     return (
-      <Box display="flex" justifyContent="center" p={3}>
-        <CircularProgress />
-      </Box>
+      <div className="flex justify-center p-6">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
+      </div>
     );
   }
 
   if (opportunities.length === 0) {
     return (
-      <Alert severity="info" sx={{ m: 2 }}>
-        No betting opportunities available at the moment.
-      </Alert>
+      <GlassCard className="mb-3">
+        <div className="text-blue-600 font-semibold">
+          No betting opportunities available at the moment.
+        </div>
+      </GlassCard>
     );
   }
 
@@ -49,121 +44,91 @@ export const BettingOpportunities: React.FC<BettingOpportunitiesProps> = ({
   };
 
   return (
-    <Stack spacing={2}>
+    <div className="space-y-4">
       {alerts.map((alert, index) => (
-        <Alert key={index} severity={alert.type === 'warning' ? 'warning' : 'info'} sx={{ mb: 2 }}>
-          {alert.message}
-        </Alert>
+        <GlassCard key={index} className="mb-2">
+          <div className="text-yellow-600 font-semibold">{alert.message}</div>
+        </GlassCard>
       ))}
 
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-        {opportunities.map(opportunity => (
-          <Card
-            key={isBetRecommendation(opportunity) ? opportunity.event_id : opportunity.id}
-            sx={{ flex: '1 1 300px', maxWidth: '100%' }}
-          >
-            <CardContent>
-              <Stack spacing={2}>
-                <Box alignItems="center" display="flex" justifyContent="space-between">
-                  <Typography variant="h6">Betting Opportunity</Typography>
-                  <Chip
-                    color={
-                      (isBetRecommendation(opportunity)
-                        ? opportunity.confidence_score
-                        : opportunity.confidence) > 0.7
-                        ? 'success'
-                        : 'warning'
-                    }
-                    label={`${formatPercentage(isBetRecommendation(opportunity) ? opportunity.confidence_score : opportunity.confidence)} Confidence`}
-                  />
-                </Box>
-
-                <Stack spacing={2}>
-                  {isBetRecommendation(opportunity) ? (
-                    <>
-                      <Box>
-                        <Typography color="text.secondary" variant="body2">
-                          Expected ROI
-                        </Typography>
-                        <Typography
-                          color={opportunity.expected_roi > 0 ? 'success.main' : 'error.main'}
-                          variant="h6"
-                        >
-                          {formatPercentage(opportunity.expected_roi)}
-                        </Typography>
-                      </Box>
-
-                      <Box>
-                        <Typography color="text.secondary" variant="body2">
-                          Recommended Stake
-                        </Typography>
-                        <Typography variant="h6">
-                          {formatCurrency(opportunity.recommended_stake)}
-                        </Typography>
-                      </Box>
-                    </>
-                  ) : (
-                    <>
-                      <Box>
-                        <Typography color="text.secondary" variant="body2">
-                          Kelly Value
-                        </Typography>
-                        <Typography
-                          color={opportunity.kellyValue > 0 ? 'success.main' : 'error.main'}
-                          variant="h6"
-                        >
-                          {formatPercentage(opportunity.kellyValue)}
-                        </Typography>
-                      </Box>
-
-                      <Box>
-                        <Typography color="text.secondary" variant="body2">
-                          Market Edge
-                        </Typography>
-                        <Typography
-                          color={opportunity.marketEdge > 0 ? 'success.main' : 'error.main'}
-                          variant="h6"
-                        >
-                          {formatPercentage(opportunity.marketEdge)}
-                        </Typography>
-                      </Box>
-                    </>
-                  )}
-
-                  <Box>
-                    <Typography color="text.secondary" variant="body2">
-                      Odds
-                    </Typography>
-                    <Typography variant="h6">{formatOdds(opportunity.odds)}</Typography>
-                  </Box>
-
-                  <Box>
-                    <Typography color="text.secondary" variant="body2">
-                      Win Probability
-                    </Typography>
-                    <Typography variant="h6">
-                      {formatPercentage(
-                        isBetRecommendation(opportunity)
-                          ? opportunity.prediction.home_win_probability
-                          : opportunity.prediction
-                      )}
-                    </Typography>
-                  </Box>
-
-                  <Button
-                    fullWidth
-                    color="primary"
-                    variant="contained"
-                    onClick={() => onBetPlacement(opportunity)}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {opportunities.map((opportunity, idx) => (
+          <GlassCard key={isBetRecommendation(opportunity) ? opportunity.event_id : opportunity.id}>
+            <EnhancedPropCard
+              playerName={opportunity.playerName || opportunity.prediction?.playerName || ''}
+              team={opportunity.team || ''}
+              position={opportunity.position || ''}
+              statType={opportunity.statType || ''}
+              line={opportunity.line || 0}
+              overOdds={opportunity.overOdds || opportunity.odds || 0}
+              underOdds={opportunity.underOdds || opportunity.odds || 0}
+              aiBoost={opportunity.aiBoost}
+              patternStrength={opportunity.patternStrength}
+              bonusPercent={opportunity.bonusPercent}
+              enhancementPercent={opportunity.enhancementPercent}
+              pickType={opportunity.pickType}
+              trendValue={opportunity.trendValue}
+              gameInfo={opportunity.gameInfo}
+              playerImageUrl={opportunity.playerImageUrl}
+              onSelect={() => onBetPlacement(opportunity)}
+              onViewDetails={() => {}}
+            />
+            <div className="mt-4 flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <Tooltip content="Confidence score for this bet.">
+                  <span
+                    className={`px-2 py-1 rounded-full text-xs font-bold ${
+                      isBetRecommendation(opportunity)
+                        ? opportunity.confidence_score > 0.7
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-yellow-100 text-yellow-700'
+                        : opportunity.confidence > 0.7
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-yellow-100 text-yellow-700'
+                    }`}
                   >
-                    Place Bet
-                  </Button>
-                </Stack>
-              </Stack>
-            </CardContent>
-          </Card>
+                    {formatPercentage(
+                      isBetRecommendation(opportunity) ? opportunity.confidence_score : opportunity.confidence
+                    )}{' '}
+                    Confidence
+                  </span>
+                </Tooltip>
+                <Tooltip content="Expected ROI for this bet.">
+                  <span className="px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">
+                    {formatPercentage(
+                      isBetRecommendation(opportunity) ? opportunity.expected_roi : opportunity.marketEdge
+                    )}{' '}
+                    ROI
+                  </span>
+                </Tooltip>
+              </div>
+              <div className="flex items-center gap-2">
+                <Tooltip content="Recommended stake for this bet.">
+                  <span className="px-2 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700">
+                    {formatCurrency(isBetRecommendation(opportunity) ? opportunity.recommended_stake : 0)} Stake
+                  </span>
+                </Tooltip>
+                <Tooltip content="Odds for this bet.">
+                  <span className="px-2 py-1 rounded-full text-xs font-bold bg-gray-100 text-gray-700">
+                    {formatOdds(opportunity.odds)}
+                  </span>
+                </Tooltip>
+                <Tooltip content="Win probability for this bet.">
+                  <span className="px-2 py-1 rounded-full text-xs font-bold bg-green-50 text-green-700">
+                    {formatPercentage(
+                      isBetRecommendation(opportunity) ? opportunity.prediction?.home_win_probability : opportunity.prediction
+                    )}{' '}
+                    Win Prob
+                  </span>
+                </Tooltip>
+              </div>
+              <GlowButton onClick={() => onBetPlacement(opportunity)} className="w-full mt-2">
+                Place Bet
+              </GlowButton>
+            </div>
+          </GlassCard>
         ))}
-      </Box>
-    </Stack>
+      </div>
+    </div>
   );
 };

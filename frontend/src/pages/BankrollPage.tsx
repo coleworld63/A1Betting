@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import GlassCard from '../components/ui/GlassCard';
+import GlowButton from '../components/ui/GlowButton';
+import Tooltip from '../components/ui/Tooltip';
 
 interface Transaction {
   id: string;
@@ -67,144 +70,70 @@ const BankrollPage: React.FC = () => {
   };
 
   return (
-    <main className="section space-y-6 lg:space-y-8 animate-fade-in">
-      <div className="modern-card p-6 lg:p-8">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
-          <h1 className="text-2xl lg:text-3xl font-bold">💰 Bankroll Management</h1>
-          <div className="flex gap-4">
-            <button className="modern-button">Deposit</button>
-            <button className="modern-button bg-gray-500 hover:bg-gray-600">Withdraw</button>
+    <div className="p-6 space-y-8 min-h-screen bg-gradient-to-br from-green-900/80 to-green-700/80 dark:from-gray-900 dark:to-gray-800 transition-colors">
+      <GlassCard className="mb-8">
+        <h2 className="text-2xl font-bold text-green-900 dark:text-green-100 mb-4">Bankroll Overview</h2>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+          <div>
+            <Tooltip content="Your current bankroll balance.">
+              <div className="text-xs text-gray-400">Current Balance</div>
+            </Tooltip>
+            <div className="text-2xl font-bold text-primary-600">${currentBalance.toLocaleString()}</div>
+          </div>
+          <div>
+            <Tooltip content="Your initial balance for this period.">
+              <div className="text-xs text-gray-400">Initial Balance</div>
+            </Tooltip>
+            <div className="text-2xl font-bold text-blue-600">${initialBalance.toLocaleString()}</div>
+          </div>
+          <div>
+            <Tooltip content="Your profit or loss for this period.">
+              <div className="text-xs text-gray-400">Profit / Loss</div>
+            </Tooltip>
+            <div className={`text-2xl font-bold ${profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}>${profitLoss.toLocaleString()}</div>
+          </div>
+          <div>
+            <Tooltip content="Return on investment (ROI) for this period.">
+              <div className="text-xs text-gray-400">ROI</div>
+            </Tooltip>
+            <div className="text-2xl font-bold text-purple-600">{roi}%</div>
           </div>
         </div>
-        {loading ? (
-          <div className="text-gray-500 dark:text-gray-400">Loading...</div>
-        ) : error ? (
-          <div className="text-red-600 dark:text-red-400">{error}</div>
-        ) : (
-          <>
-            {/* Overview Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              <div className="modern-card p-6">
-                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-                  Current Balance
-                </h3>
-                <p className="text-2xl font-bold">${currentBalance.toFixed(2)}</p>
-              </div>
-
-              <div className="modern-card p-6">
-                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-                  Profit/Loss
-                </h3>
-                <p
-                  className={`text-2xl font-bold ${profitLoss >= 0 ? 'text-green-600' : 'text-red-600'}`}
-                >
-                  {profitLoss >= 0 ? '+' : ''}
-                  {profitLoss.toFixed(2)}
-                </p>
-              </div>
-
-              <div className="modern-card p-6">
-                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">ROI</h3>
-                <p
-                  className={`text-2xl font-bold ${Number(roi) >= 0 ? 'text-green-600' : 'text-red-600'}`}
-                >
-                  {Number(roi) >= 0 ? '+' : ''}
-                  {roi}%
-                </p>
-              </div>
-
-              <div className="modern-card p-6">
-                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-                  Active Bets
-                </h3>
-                <p className="text-2xl font-bold">{activeBetsCount}</p>
-              </div>
-            </div>
-            {/* Chart Section (scaffold) */}
-            <div className="modern-card p-6 mb-8">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold">Balance History</h2>
-                <div className="flex rounded-lg overflow-hidden">
-                  {(['7d', '30d', '90d', 'all'] as const).map((t) => (
-                    <button
-                      key={t}
-                      className={`px-4 py-2 text-sm font-medium ${timeframe === t
-                        ? 'bg-primary-500 text-white'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                        }`}
-                      onClick={() => setTimeframe(t)}
-                    >
-                      {t === 'all' ? 'All Time' : t}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="h-64 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center">
-                {/* Chart integration can be added here (e.g., Chart.js, Recharts) */}
-                <span className="text-gray-400">Chart Placeholder</span>
-              </div>
-            </div>
-            {/* Transactions */}
-            <div>
-              <h2 className="text-lg font-bold mb-4">Transaction History</h2>
-              <div className="overflow-x-auto">
-                {transactions.length === 0 ? (
-                  <div className="text-gray-500 dark:text-gray-400">
-                    No transactions available.
-                  </div>
-                ) : (
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead>
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Date
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Type
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Amount
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Description
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                          Balance
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {transactions.map((tx) => (
-                        <tr key={tx.id}>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            {new Date(tx.date).toLocaleString()}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`capitalize ${getTransactionColor(tx.type)}`}>
-                              {tx.type}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={getTransactionColor(tx.type)}>
-                              {tx.type === 'withdrawal' || tx.type === 'loss' ? '-' : '+'}${Math.abs(tx.amount).toFixed(2)}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">{tx.description}</td>
-                          <td className="px-6 py-4 whitespace-nowrap font-medium">
-                            ${tx.balance.toFixed(2)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-
-            </div>
-          </>
-        )}
-      </div>
-    </main>
+        <div className="flex gap-4 mb-4">
+          <GlowButton onClick={() => setTimeframe('7d')} className={timeframe === '7d' ? 'bg-primary-500' : ''}>7D</GlowButton>
+          <GlowButton onClick={() => setTimeframe('30d')} className={timeframe === '30d' ? 'bg-primary-500' : ''}>30D</GlowButton>
+          <GlowButton onClick={() => setTimeframe('90d')} className={timeframe === '90d' ? 'bg-primary-500' : ''}>90D</GlowButton>
+          <GlowButton onClick={() => setTimeframe('all')} className={timeframe === 'all' ? 'bg-primary-500' : ''}>All</GlowButton>
+        </div>
+      </GlassCard>
+      <GlassCard>
+        <h3 className="text-xl font-semibold mb-4">Transaction History</h3>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="text-left text-gray-400">
+                <th>Date</th>
+                <th>Type</th>
+                <th>Amount</th>
+                <th>Description</th>
+                <th>Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {transactions.map((tx) => (
+                <tr key={tx.id} className="border-b border-gray-200 dark:border-gray-700">
+                  <td className="py-2">{tx.date}</td>
+                  <td className={`py-2 ${getTransactionColor(tx.type)}`}>{tx.type}</td>
+                  <td className="py-2">${tx.amount.toLocaleString()}</td>
+                  <td className="py-2">{tx.description}</td>
+                  <td className="py-2">${tx.balance.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </GlassCard>
+    </div>
   );
 };
 

@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
+import GlassCard from '../components/ui/GlassCard';
+import EnhancedPropCard from '../components/ui/EnhancedPropCard';
+import GlowButton from '../components/ui/GlowButton';
+import Tooltip from '../components/ui/Tooltip';
 import {
-  Box,
-  Card,
-  CardContent,
   Grid,
   Typography,
   Button,
@@ -128,199 +129,194 @@ const LineupBuilderPage: React.FC = () => {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography gutterBottom variant="h4">
+    <div className="p-6 space-y-8">
+      <h1 className="text-3xl font-bold bg-gradient-to-r from-primary-500 to-primary-700 bg-clip-text text-transparent mb-6">
         Lineup Builder
-      </Typography>
+      </h1>
 
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
+        <GlassCard className="mb-3">
+          <div className="text-red-600 font-semibold">{error}</div>
+        </GlassCard>
       )}
 
       {/* Strategy Configuration */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Grid container spacing={3}>
-            <Grid item md={6} xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Strategy Type</InputLabel>
-                <Select
-                  label="Strategy Type"
-                  value={strategy.type}
-                  onChange={handleStrategyTypeChange}
-                >
-                  <MenuItem value="goblin">Goblin (Conservative)</MenuItem>
-                  <MenuItem value="demon">Demon (Aggressive)</MenuItem>
-                  <MenuItem value="balanced">Balanced</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item md={6} xs={12}>
-              <Typography gutterBottom>Target Confidence</Typography>
-              <Slider
-                max={95}
-                min={50}
-                value={strategy.targetConfidence}
-                valueLabelDisplay="auto"
-                valueLabelFormat={value => `${value}%`}
-                onChange={handleConfidenceChange}
-              />
-            </Grid>
-
-            <Grid item md={6} xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Number of Legs</InputLabel>
-                <Select
-                  label="Number of Legs"
-                  value={`${strategy.minLegs}-${strategy.maxLegs}`}
-                  onChange={handleLegsChange}
-                >
-                  <MenuItem value="2-3">2-3 Legs</MenuItem>
-                  <MenuItem value="3-4">3-4 Legs</MenuItem>
-                  <MenuItem value="4-5">4-5 Legs</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item md={6} xs={12}>
-              <FormControl fullWidth>
-                <InputLabel>Max Same Team</InputLabel>
-                <Select
-                  label="Max Same Team"
-                  value={strategy.maxSameTeam.toString()}
-                  onChange={handleSameTeamChange}
-                >
-                  <MenuItem value="1">1 Player</MenuItem>
-                  <MenuItem value="2">2 Players</MenuItem>
-                  <MenuItem value="3">3 Players</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
+      <GlassCard className="mb-6">
+        <Grid container spacing={3}>
+          <Grid item md={6} xs={12}>
+            <FormControl fullWidth>
+              <InputLabel>Strategy Type</InputLabel>
+              <Select
+                label="Strategy Type"
+                value={strategy.type}
+                onChange={handleStrategyTypeChange}
+              >
+                <MenuItem value="goblin">Goblin (Conservative)</MenuItem>
+                <MenuItem value="demon">Demon (Aggressive)</MenuItem>
+                <MenuItem value="balanced">Balanced</MenuItem>
+              </Select>
+            </FormControl>
           </Grid>
 
-          <Button
-            fullWidth
-            color="primary"
-            disabled={isLoading}
-            sx={{ mt: 3 }}
-            variant="contained"
-            onClick={generateLineup}
-          >
-            Generate Lineup
-          </Button>
-        </CardContent>
-      </Card>
+          <Grid item md={6} xs={12}>
+            <Typography gutterBottom>Target Confidence</Typography>
+            <Slider
+              max={95}
+              min={50}
+              value={strategy.targetConfidence}
+              valueLabelDisplay="auto"
+              valueLabelFormat={value => `${value}%`}
+              onChange={handleConfidenceChange}
+            />
+          </Grid>
+
+          <Grid item md={6} xs={12}>
+            <FormControl fullWidth>
+              <InputLabel>Number of Legs</InputLabel>
+              <Select
+                label="Number of Legs"
+                value={`${strategy.minLegs}-${strategy.maxLegs}`}
+                onChange={handleLegsChange}
+              >
+                <MenuItem value="2-3">2-3 Legs</MenuItem>
+                <MenuItem value="3-4">3-4 Legs</MenuItem>
+                <MenuItem value="4-5">4-5 Legs</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item md={6} xs={12}>
+            <FormControl fullWidth>
+              <InputLabel>Max Same Team</InputLabel>
+              <Select
+                label="Max Same Team"
+                value={strategy.maxSameTeam.toString()}
+                onChange={handleSameTeamChange}
+              >
+                <MenuItem value="1">1 Player</MenuItem>
+                <MenuItem value="2">2 Players</MenuItem>
+                <MenuItem value="3">3 Players</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+
+        <Button
+          fullWidth
+          color="primary"
+          disabled={isLoading}
+          sx={{ mt: 3 }}
+          variant="contained"
+          onClick={generateLineup}
+        >
+          Generate Lineup
+        </Button>
+      </GlassCard>
 
       {/* Generated Lineup */}
       {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-          <CircularProgress />
-        </Box>
+        <div className="flex justify-center p-6">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600"></div>
+        </div>
       ) : currentLineup ? (
-        <Card>
-          <CardContent>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-              <Typography variant="h6">Generated Lineup</Typography>
-              <Chip
-                color={currentLineup.performance.winProbability >= 80 ? 'success' : 'warning'}
-                label={`${formatPercentage(currentLineup.performance.winProbability)} Win Probability`}
+        <GlassCard>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Generated Lineup</h2>
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-bold ${
+                currentLineup.performance.winProbability >= 80
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-yellow-100 text-yellow-700'
+              }`}
+            >
+              {formatPercentage(currentLineup.performance.winProbability)} Win Probability
+            </span>
+          </div>
+          <div className="mb-2 text-gray-500">
+            Expected Value: {formatCurrency(currentLineup.performance.expectedValue)}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mt-4">
+            {currentLineup.legs.map((leg: LineupLeg, index: number) => (
+              <EnhancedPropCard
+                key={index}
+                playerName={leg.playerName || ''}
+                team={leg.team || ''}
+                position={leg.position || ''}
+                statType={leg.propType}
+                line={leg.line}
+                overOdds={leg.odds}
+                underOdds={leg.odds}
+                pickType={leg.pickType}
+                trendValue={leg.trendValue}
+                gameInfo={leg.gameInfo}
+                playerImageUrl={leg.playerImageUrl}
+                onSelect={() => {}}
+                onViewDetails={() => {}}
               />
-            </Box>
-
-            <Typography gutterBottom color="text.secondary" variant="body2">
-              Expected Value: {formatCurrency(currentLineup.performance.expectedValue)}
-            </Typography>
-
-            <Box sx={{ mt: 2 }}>
-              <Typography gutterBottom variant="subtitle2">
-                Selected Props:
-              </Typography>
-              {currentLineup.legs.map((leg: LineupLeg, index: number) => (
-                <Box key={index} sx={{ mb: 1 }}>
-                  <Typography variant="body2">
-                    {leg.propType} - {leg.line} ({formatCurrency(leg.odds)})
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
-
-            <Box sx={{ mt: 2 }}>
-              <Typography gutterBottom variant="subtitle2">
-                Risk Analysis:
-              </Typography>
-              <Typography variant="body2">
-                Risk Score: {currentLineup.performance.riskScore.toFixed(2)}
-              </Typography>
-            </Box>
-
-            <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
-              <Button fullWidth color="primary" variant="contained" onClick={handlePlaceLineup}>
-                Place Lineup
-              </Button>
-              <Button fullWidth color="primary" variant="outlined" onClick={handleSaveLineup}>
-                Save Lineup
-              </Button>
-            </Box>
-          </CardContent>
-        </Card>
+            ))}
+          </div>
+          <div className="mt-6 flex gap-4">
+            <GlowButton onClick={handlePlaceLineup} className="flex-1">
+              Place Lineup
+            </GlowButton>
+            <GlowButton onClick={handleSaveLineup} className="flex-1 bg-white text-primary-600 border border-primary-500">
+              Save Lineup
+            </GlowButton>
+          </div>
+        </GlassCard>
       ) : null}
 
       {/* Saved Lineups */}
       {savedLineups.length > 0 && (
-        <Box sx={{ mt: 4 }}>
-          <Typography gutterBottom variant="h5">
-            Saved Lineups
-          </Typography>
-          <Grid container spacing={3}>
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold mb-4">Saved Lineups</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {savedLineups.map((lineup: Lineup) => (
-              <Grid key={lineup.id} item lg={4} md={6} xs={12}>
-                <Card>
-                  <CardContent>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-                      <Typography variant="h6">{lineup.strategy.name}</Typography>
-                      <Chip
-                        color={lineup.performance.winProbability >= 80 ? 'success' : 'warning'}
-                        label={`${formatPercentage(lineup.performance.winProbability)} Win Probability`}
-                      />
-                    </Box>
-
-                    <Typography gutterBottom color="text.secondary" variant="body2">
-                      Expected Value: {formatCurrency(lineup.performance.expectedValue)}
-                    </Typography>
-
-                    <Box sx={{ mt: 2 }}>
-                      <Typography gutterBottom variant="subtitle2">
-                        Selected Props:
-                      </Typography>
-                      {lineup.legs.map((leg: LineupLeg, index: number) => (
-                        <Box key={index} sx={{ mb: 1 }}>
-                          <Typography variant="body2">
-                            {leg.propType} - {leg.line} ({formatCurrency(leg.odds)})
-                          </Typography>
-                        </Box>
-                      ))}
-                    </Box>
-
-                    <Button
-                      fullWidth
-                      color="primary"
-                      sx={{ mt: 2 }}
-                      variant="contained"
-                      onClick={() => setCurrentLineup(lineup)}
-                    >
-                      Load Lineup
-                    </Button>
-                  </CardContent>
-                </Card>
-              </Grid>
+              <GlassCard key={lineup.id}>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-semibold">{lineup.strategy.name}</span>
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-bold ${
+                      lineup.performance.winProbability >= 80
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-yellow-100 text-yellow-700'
+                    }`}
+                  >
+                    {formatPercentage(lineup.performance.winProbability)} Win Probability
+                  </span>
+                </div>
+                <div className="mb-2 text-gray-500">
+                  Expected Value: {formatCurrency(lineup.performance.expectedValue)}
+                </div>
+                <div className="grid grid-cols-1 gap-2 mt-2">
+                  {lineup.legs.map((leg: LineupLeg, index: number) => (
+                    <EnhancedPropCard
+                      key={index}
+                      playerName={leg.playerName || ''}
+                      team={leg.team || ''}
+                      position={leg.position || ''}
+                      statType={leg.propType}
+                      line={leg.line}
+                      overOdds={leg.odds}
+                      underOdds={leg.odds}
+                      pickType={leg.pickType}
+                      trendValue={leg.trendValue}
+                      gameInfo={leg.gameInfo}
+                      playerImageUrl={leg.playerImageUrl}
+                      onSelect={() => {}}
+                      onViewDetails={() => {}}
+                    />
+                  ))}
+                </div>
+                <GlowButton onClick={() => setCurrentLineup(lineup)} className="w-full mt-4">
+                  Load Lineup
+                </GlowButton>
+              </GlassCard>
             ))}
-          </Grid>
-        </Box>
+          </div>
+        </div>
       )}
-    </Box>
+    </div>
   );
 }
 

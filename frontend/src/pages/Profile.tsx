@@ -1,34 +1,7 @@
 import React, { useState } from 'react';
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Grid,
-  Avatar,
-  Button,
-  TextField,
-  Divider,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemIcon,
-  IconButton,
-  Chip,
-  Alert,
-  Snackbar,
-} from '@mui/material';
-import {
-  Edit as EditIcon,
-  Save as SaveIcon,
-  Cancel as CancelIcon,
-  Email as EmailIcon,
-  Phone as PhoneIcon,
-  LocationOn as LocationIcon,
-  SportsSoccer as SportsIcon,
-  TrendingUp as TrendingUpIcon,
-  AccountBalance as AccountBalanceIcon,
-} from '@mui/icons-material';
+import GlassCard from '../components/ui/GlassCard';
+import GlowButton from '../components/ui/GlowButton';
+import Tooltip from '../components/ui/Tooltip';
 
 const mockUserData = {
   name: 'John Doe',
@@ -88,205 +61,53 @@ const Profile: React.FC = () => {
   };
 
   return (
-    <Box sx={{ flexGrow: 1, p: 3 }}>
-      <Typography gutterBottom variant="h4">
-        Profile
-      </Typography>
-
-      <Grid container spacing={3}>
-        <Grid item md={4} xs={12}>
-          <Card>
-            <CardContent sx={{ textAlign: 'center' }}>
-              <Avatar
-                sx={{
-                  width: 120,
-                  height: 120,
-                  fontSize: '3rem',
-                  margin: '0 auto 1rem',
-                  bgcolor: 'primary.main',
-                }}
-              >
-                {userData.avatar}
-              </Avatar>
-              <Typography gutterBottom variant="h5">
-                {isEditing ? (
-                  <TextField
-                    fullWidth
-                    value={editedData.name}
-                    onChange={e => handleChange('name', e.target.value)}
-                  />
-                ) : (
-                  userData.name
-                )}
-              </Typography>
-              <Typography gutterBottom color="textSecondary">
-                Member since {userData.joinDate}
-              </Typography>
-              <Box sx={{ mt: 2 }}>
-                {isEditing ? (
-                  <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-                    <Button
-                      color="primary"
-                      startIcon={<SaveIcon />}
-                      variant="contained"
-                      onClick={handleSave}
-                    >
-                      Save
-                    </Button>
-                    <Button
-                      color="error"
-                      startIcon={<CancelIcon />}
-                      variant="outlined"
-                      onClick={handleCancel}
-                    >
-                      Cancel
-                    </Button>
-                  </Box>
-                ) : (
-                  <Button startIcon={<EditIcon />} variant="outlined" onClick={handleEdit}>
-                    Edit Profile
-                  </Button>
-                )}
-              </Box>
-            </CardContent>
-          </Card>
-
-          <Card sx={{ mt: 3 }}>
-            <CardContent>
-              <Typography gutterBottom variant="h6">
-                Contact Information
-              </Typography>
-              <List>
-                <ListItem>
-                  <ListItemIcon>
-                    <EmailIcon />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Email"
-                    secondary={
-                      isEditing ? (
-                        <TextField
-                          fullWidth
-                          value={editedData.email}
-                          onChange={e => handleChange('email', e.target.value)}
-                        />
-                      ) : (
-                        userData.email
-                      )
-                    }
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemIcon>
-                    <PhoneIcon />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Phone"
-                    secondary={
-                      isEditing ? (
-                        <TextField
-                          fullWidth
-                          value={editedData.phone}
-                          onChange={e => handleChange('phone', e.target.value)}
-                        />
-                      ) : (
-                        userData.phone
-                      )
-                    }
-                  />
-                </ListItem>
-                <ListItem>
-                  <ListItemIcon>
-                    <LocationIcon />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary="Location"
-                    secondary={
-                      isEditing ? (
-                        <TextField
-                          fullWidth
-                          value={editedData.location}
-                          onChange={e => handleChange('location', e.target.value)}
-                        />
-                      ) : (
-                        userData.location
-                      )
-                    }
-                  />
-                </ListItem>
-              </List>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item md={8} xs={12}>
-          <Card>
-            <CardContent>
-              <Typography gutterBottom variant="h6">
-                Statistics
-              </Typography>
-              <Grid container spacing={2}>
-                <Grid item sm={6} xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <SportsIcon sx={{ mr: 1 }} />
-                    <Box>
-                      <Typography variant="subtitle2">Total Predictions</Typography>
-                      <Typography variant="h6">{userData.stats.totalPredictions}</Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-                <Grid item sm={6} xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <TrendingUpIcon sx={{ mr: 1 }} />
-                    <Box>
-                      <Typography variant="subtitle2">Success Rate</Typography>
-                      <Typography variant="h6">{userData.stats.successRate}%</Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-                <Grid item sm={6} xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <TrendingUpIcon sx={{ mr: 1 }} />
-                    <Box>
-                      <Typography variant="subtitle2">Current Win Streak</Typography>
-                      <Typography variant="h6">{userData.stats.winStreak}</Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-                <Grid item sm={6} xs={12}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                    <AccountBalanceIcon sx={{ mr: 1 }} />
-                    <Box>
-                      <Typography variant="subtitle2">Total Winnings</Typography>
-                      <Typography variant="h6">${userData.stats.totalWinnings}</Typography>
-                    </Box>
-                  </Box>
-                </Grid>
-              </Grid>
-            </CardContent>
-          </Card>
-
-          <Card sx={{ mt: 3 }}>
-            <CardContent>
-              <Typography gutterBottom variant="h6">
-                Favorite Sports
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                {userData.favoriteSports.map(sport => (
-                  <Chip key={sport} label={sport} />
-                ))}
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      <Snackbar autoHideDuration={6000} open={snackbar.open} onClose={handleCloseSnackbar}>
-        <Alert severity={snackbar.severity} sx={{ width: '100%' }} onClose={handleCloseSnackbar}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
-    </Box>
+    <div className="p-6 space-y-8 max-w-3xl mx-auto">
+      <GlassCard className="flex flex-col items-center p-8">
+        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-4xl font-bold text-white mb-4">
+          {userData.avatar}
+        </div>
+        <div className="text-2xl font-bold mb-2">{userData.name}</div>
+        <div className="text-gray-500 mb-2">{userData.email}</div>
+        <div className="text-gray-400 mb-2">{userData.location}</div>
+        <div className="text-xs text-gray-400 mb-4">Joined {userData.joinDate}</div>
+        <div className="flex gap-4 mb-4">
+          {userData.favoriteSports.map((sport, idx) => (
+            <span key={idx} className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">{sport}</span>
+          ))}
+        </div>
+        <div className="flex gap-4 mb-4">
+          <GlowButton onClick={handleEdit} className="bg-primary-500">Edit Profile</GlowButton>
+        </div>
+      </GlassCard>
+      <GlassCard className="p-6">
+        <div className="grid grid-cols-2 gap-6">
+          <div>
+            <Tooltip content="Total number of predictions you've made.">
+              <div className="text-xs text-gray-400">Total Predictions</div>
+            </Tooltip>
+            <div className="text-2xl font-bold text-primary-600">{userData.stats.totalPredictions}</div>
+          </div>
+          <div>
+            <Tooltip content="Your overall success rate.">
+              <div className="text-xs text-gray-400">Success Rate</div>
+            </Tooltip>
+            <div className="text-2xl font-bold text-green-600">{userData.stats.successRate}%</div>
+          </div>
+          <div>
+            <Tooltip content="Your current win streak.">
+              <div className="text-xs text-gray-400">Win Streak</div>
+            </Tooltip>
+            <div className="text-2xl font-bold text-yellow-600">{userData.stats.winStreak}</div>
+          </div>
+          <div>
+            <Tooltip content="Total winnings from all bets.">
+              <div className="text-xs text-gray-400">Total Winnings</div>
+            </Tooltip>
+            <div className="text-2xl font-bold text-purple-600">${userData.stats.totalWinnings.toLocaleString()}</div>
+          </div>
+        </div>
+      </GlassCard>
+    </div>
   );
 };
 

@@ -1,7 +1,11 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
 import { Line } from 'react-chartjs-2';
+import GlassCard from '../ui/GlassCard';
+import GlowButton from '../ui/GlowButton';
+import EnhancedPropCard from '../ui/EnhancedPropCard';
+import Tooltip from '../ui/Tooltip';
+import { NotificationCenter } from '../ui/NotificationCenter';
 import { predictionService } from '../../services/predictionService';
 import useStore from '../../store/useStore';
 import { UnifiedStrategyConfig } from '../strategy/UnifiedStrategyConfig';
@@ -51,6 +55,9 @@ const Dashboard: React.FC = () => {
       legend: {
         position: 'top' as const,
       },
+      tooltip: {
+        enabled: true,
+      },
     },
     scales: {
       y: {
@@ -61,117 +68,100 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-primary-500 to-primary-700 bg-clip-text text-transparent">
-          Dashboard
-        </h1>
-        <div className="flex space-x-4">
-          <button className="modern-button">
-            <i className="fas fa-sync-alt mr-2" />
-            Refresh
-          </button>
-        </div>
+    <div className="space-y-8">
+      {/* Notification Center */}
+      <div className="flex justify-end mb-2">
+        <NotificationCenter />
       </div>
-
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <motion.div
-          animate={{ opacity: 1, y: 0 }}
-          className="modern-card p-6"
-          initial={{ opacity: 0, y: 20 }}
-        >
-          <div className="text-sm text-gray-500">Total Predictions</div>
-          <div className="text-3xl font-bold text-primary-500">
-            {metrics?.total_predictions || 0}
+        <GlassCard>
+          <div className="flex items-center justify-between">
+            <Tooltip content="Total number of predictions made by the engine.">
+              <span className="text-sm text-gray-500 cursor-help">Total Predictions</span>
+            </Tooltip>
+            <span className="text-3xl font-bold text-primary-500">
+              {metricsLoading ? '...' : metrics?.total_predictions || 0}
+            </span>
           </div>
-        </motion.div>
-
-        <motion.div
-          animate={{ opacity: 1, y: 0 }}
-          className="modern-card p-6"
-          initial={{ opacity: 0, y: 20 }}
-          transition={{ delay: 0.1 }}
-        >
-          <div className="text-sm text-gray-500">Average Accuracy</div>
-          <div className="text-3xl font-bold text-primary-500">
-            {metrics?.average_accuracy ? `${(metrics.average_accuracy * 100).toFixed(1)}%` : '0%'}
+        </GlassCard>
+        <GlassCard>
+          <div className="flex items-center justify-between">
+            <Tooltip content="Average accuracy of all predictions.">
+              <span className="text-sm text-gray-500 cursor-help">Avg Accuracy</span>
+            </Tooltip>
+            <span className="text-3xl font-bold text-primary-500">
+              {metricsLoading ? '...' : metrics?.average_accuracy ? `${(metrics.average_accuracy * 100).toFixed(1)}%` : '0%'}
+            </span>
           </div>
-        </motion.div>
-
-        <motion.div
-          animate={{ opacity: 1, y: 0 }}
-          className="modern-card p-6"
-          initial={{ opacity: 0, y: 20 }}
-          transition={{ delay: 0.2 }}
-        >
-          <div className="text-sm text-gray-500">Success Rate</div>
-          <div className="text-3xl font-bold text-primary-500">
-            {metrics?.success_rate ? `${(metrics.success_rate * 100).toFixed(1)}%` : '0%'}
+        </GlassCard>
+        <GlassCard>
+          <div className="flex items-center justify-between">
+            <Tooltip content="Success rate of predictions (win %).">
+              <span className="text-sm text-gray-500 cursor-help">Success Rate</span>
+            </Tooltip>
+            <span className="text-3xl font-bold text-primary-500">
+              {metricsLoading ? '...' : metrics?.success_rate ? `${(metrics.success_rate * 100).toFixed(1)}%` : '0%'}
+            </span>
           </div>
-        </motion.div>
-
-        <motion.div
-          animate={{ opacity: 1, y: 0 }}
-          className="modern-card p-6"
-          initial={{ opacity: 0, y: 20 }}
-          transition={{ delay: 0.3 }}
-        >
-          <div className="text-sm text-gray-500">ROI</div>
-          <div className="text-3xl font-bold text-primary-500">
-            {metrics?.roi ? `${metrics.roi.toFixed(2)}%` : '0%'}
+        </GlassCard>
+        <GlassCard>
+          <div className="flex items-center justify-between">
+            <Tooltip content="Return on investment from all predictions.">
+              <span className="text-sm text-gray-500 cursor-help">ROI</span>
+            </Tooltip>
+            <span className="text-3xl font-bold text-primary-500">
+              {metricsLoading ? '...' : metrics?.roi ? `${metrics.roi.toFixed(2)}%` : '0%'}
+            </span>
           </div>
-        </motion.div>
+        </GlassCard>
       </div>
-
       {/* Performance Chart */}
-      <div className="modern-card p-6">
-        <h2 className="text-xl font-semibold mb-4">Performance Overview</h2>
+      <GlassCard className="p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold">Performance Overview</h2>
+          <Tooltip content="Refresh chart data">
+            <GlowButton onClick={() => window.location.reload()}>
+              Refresh
+            </GlowButton>
+          </Tooltip>
+        </div>
         <div className="h-80">
           <Line data={chartData} options={chartOptions} />
         </div>
-      </div>
-
+      </GlassCard>
       {/* Recent Predictions */}
-      <div className="modern-card p-6">
+      <GlassCard>
         <h2 className="text-xl font-semibold mb-4">Recent Predictions</h2>
-        <div className="space-y-4">
-          {predictions?.slice(0, 5).map(prediction => (
-            <motion.div
-              key={prediction.id}
-              animate={{ opacity: 1, y: 0 }}
-              className="premium-input-container p-4"
-              initial={{ opacity: 0, y: 20 }}
-            >
-              <div className="flex justify-between items-center">
-                <div>
-                  <div className="text-lg font-semibold">
-                    Prediction: {(prediction.prediction * 100).toFixed(1)}%
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {new Date(prediction.timestamp).toLocaleString()}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="font-semibold">
-                    Confidence: {(prediction.confidence * 100).toFixed(1)}%
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    Edge: {(prediction.marketEdge * 100).toFixed(1)}%
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {predictionsLoading
+            ? Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="animate-pulse h-32 bg-gray-200 dark:bg-gray-700 rounded-2xl" />
+              ))
+            : predictions?.slice(0, 6).map(prediction => (
+                <EnhancedPropCard
+                  key={prediction.id}
+                  playerName={prediction.playerName}
+                  statType={prediction.statType}
+                  line={prediction.line}
+                  overOdds={prediction.overOdds}
+                  underOdds={prediction.underOdds}
+                  sentiment={prediction.sentiment}
+                  aiBoost={prediction.aiBoost}
+                  patternStrength={prediction.patternStrength}
+                  bonusPercent={prediction.bonusPercent}
+                  enhancementPercent={prediction.enhancementPercent}
+                  onSelect={() => {}}
+                  onViewDetails={() => {}}
+                />
+              ))}
         </div>
-      </div>
-
+      </GlassCard>
       {/* Strategy Compositor */}
-      <div className="modern-card p-6">
+      <GlassCard>
         <h2 className="text-xl font-semibold mb-4">Strategy Compositor</h2>
         <UnifiedStrategyConfig />
-      </div>
+      </GlassCard>
     </div>
   );
 };

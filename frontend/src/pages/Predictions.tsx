@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
-import Box from "@mui/material/Box";
+import GlassCard from '../components/ui/GlassCard';
+import EnhancedPropCard from '../components/ui/EnhancedPropCard';
+import GlowButton from '../components/ui/GlowButton';
+import Tooltip from '../components/ui/Tooltip';
 import Typography from "@mui/material/Typography";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
 import Grid from "@mui/material/Grid";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
@@ -171,88 +172,10 @@ const Predictions: React.FC = () => {
   );
 
   return (
-    <Box sx={{ flexGrow: 1, p: 3 }}>
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: 3,
-        }}
-      >
-        <Typography variant="h4">Predictions</Typography>
-        <FormControl sx={{ minWidth: 120 }}>
-          <InputLabel id="risk-profile-label">Risk Profile</InputLabel>
-          <Select
-            label="Risk Profile"
-            labelId="risk-profile-label"
-            value={riskProfile}
-            onChange={(e) => setRiskProfile(e.target.value)}
-          >
-            {riskProfiles.map((rp) => (
-              <MenuItem key={rp.value} value={rp.value}>
-                {rp.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Box>
-
-      <Box sx={{ mb: 3 }}>
-        <Grid container spacing={2}>
-          <Grid item md={6} xs={12}>
-            <TextField
-              fullWidth
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-              }}
-              placeholder="Search predictions..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </Grid>
-          <Grid item md={6} xs={12}>
-            <Box sx={{ display: "flex", gap: 1 }}>
-              <Button
-                startIcon={<FilterListIcon />}
-                sx={{ flexGrow: 1 }}
-                variant="outlined"
-              >
-                Filter
-              </Button>
-              <Button sx={{ flexGrow: 1 }} variant="outlined">
-                Sort
-              </Button>
-            </Box>
-          </Grid>
-        </Grid>
-      </Box>
-
-      <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-        <Tabs value={value} onChange={handleChange}>
-          <Tab label="Active" />
-          <Tab label="Completed" />
-          <Tab label="All" />
-        </Tabs>
-      </Box>
-
-      {loading && (
-        <Box sx={{ mt: 4, textAlign: "center" }}>
-          <CircularProgress />
-        </Box>
-      )}
-      {error && (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          {error}
-        </Alert>
-      )}
-
-      <TabPanel index={0} value={value}>
-        <Grid container spacing={3}>
+    <div className="p-6 space-y-8 min-h-screen bg-gradient-to-br from-purple-900/80 to-purple-700/80 dark:from-gray-900 dark:to-gray-800 transition-colors">
+      <GlassCard className="mb-8">
+        <h2 className="text-2xl font-bold text-purple-900 dark:text-purple-100 mb-4">Model Predictions</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredPredictions.length === 0 && !loading && (
             <Grid item xs={12}>
               <Typography>No predictions found.</Typography>
@@ -260,54 +183,27 @@ const Predictions: React.FC = () => {
           )}
           {filteredPredictions.map((prediction) => (
             <Grid key={prediction.id} item xs={12}>
-              <Card>
-                <CardContent>
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      mb: 2,
-                    }}
-                  >
-                    <Box>
-                      <Typography variant="h6">{prediction.match}</Typography>
-                      <Typography gutterBottom color="textSecondary">
-                        {prediction.sport}
-                      </Typography>
-                    </Box>
-                    <IconButton
-                      onClick={(e) => handleMenuClick(e, prediction.id)}
-                    >
-                      <MoreVertIcon />
-                    </IconButton>
-                  </Box>
-                  <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-                    <Chip
-                      color="primary"
-                      label={prediction.prediction}
-                      variant="outlined"
-                    />
-                    <Chip
-                      color={prediction.trend === "up" ? "success" : "error"}
-                      icon={
-                        prediction.trend === "up" ? (
-                          <TrendingUpIcon />
-                        ) : (
-                          <TrendingDownIcon />
-                        )
-                      }
-                      label={`Confidence: ${Math.round(prediction.confidence * 100)}%`}
-                    />
-                    <Chip label={`Odds: ${prediction.odds}`} />
-                  </Box>
-                </CardContent>
-              </Card>
+              <EnhancedPropCard
+                playerName={prediction.match}
+                team={prediction.sport}
+                position={prediction.prediction}
+                statType="Confidence"
+                line={Math.round(prediction.confidence * 100)}
+                overOdds={prediction.odds}
+                underOdds={prediction.odds}
+                pickType="normal"
+                trendValue={prediction.trend === "up" ? 1 : -1}
+                gameInfo={{ opponent: 'BOS', day: 'Fri', time: '7:30pm' }}
+                playerImageUrl="https://cdn.nba.com/headshots/nba/latest/1040x760/2544.png"
+                onSelect={() => {}}
+                onViewDetails={() => {}}
+              />
             </Grid>
           ))}
-        </Grid>
-      </TabPanel>
-      {/* Repeat TabPanel for Completed and All as above, or refactor for DRYness */}
-    </Box>
+        </div>
+      </GlassCard>
+      {/* Advanced Widgets or analytics can be added here as needed */}
+    </div>
   );
 };
 

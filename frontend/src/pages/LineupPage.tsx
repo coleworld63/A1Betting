@@ -1,34 +1,19 @@
 import React from 'react';
-import { Box, Typography, Container } from '@mui/material';
-import { motion } from 'framer-motion';
+import GlassCard from '../components/ui/GlassCard';
 
 const LineupPage: React.FC = () => {
   return (
-    <motion.div animate={{ opacity: 1 }} exit={{ opacity: 0 }} initial={{ opacity: 0 }}>
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Typography gutterBottom component="h1" variant="h4">
-          Betting Lineups
-        </Typography>
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: {
-              xs: '1fr',
-              md: 'repeat(2, 1fr)',
-              lg: 'repeat(3, 1fr)',
-            },
-            gap: 3,
-          }}
-        >
-          <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
-            <Typography gutterBottom variant="h6">
-              Today's Top Picks
-            </Typography>
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-100 to-blue-50 dark:from-gray-900 dark:to-blue-950">
+      <GlassCard className="max-w-4xl w-full p-10">
+        <h1 className="text-3xl font-bold text-blue-900 dark:text-blue-100 mb-6">Betting Lineups</h1>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <GlassCard>
+            <h2 className="text-xl font-semibold mb-2">Today's Top Picks</h2>
             {/* Add your lineup content here */}
-          </Box>
-        </Box>
-      </Container>
-    </motion.div>
+          </GlassCard>
+        </div>
+      </GlassCard>
+    </div>
   );
 };
 

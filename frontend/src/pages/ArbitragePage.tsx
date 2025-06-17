@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import GlassCard from '../components/ui/GlassCard';
+import GlowButton from '../components/ui/GlowButton';
 
 interface ArbitrageOpportunity {
   id: string;
@@ -53,8 +55,8 @@ const ArbitragePage: React.FC = () => {
   );
 
   return (
-    <main className="section space-y-6 lg:space-y-8 animate-fade-in">
-      <div className="modern-card p-6 lg:p-8">
+    <div className="p-6 min-h-screen bg-gradient-to-br from-gray-100 to-blue-50 dark:from-gray-900 dark:to-blue-950">
+      <GlassCard className="mb-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8">
           <h1 className="text-2xl lg:text-3xl font-bold">🔄 Arbitrage Finder</h1>
           <div className="flex flex-wrap gap-4">
@@ -104,7 +106,7 @@ const ArbitragePage: React.FC = () => {
             </div>
           ) : (
             filteredOpportunities.map((opp) => (
-              <div key={opp.id} className="modern-card p-6 hover:shadow-lg transition-shadow">
+              <GlassCard key={opp.id} className="p-6 hover:shadow-lg transition-shadow">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                   <div>
                     <h3 className="text-lg font-bold">{opp.event}</h3>
@@ -119,15 +121,13 @@ const ArbitragePage: React.FC = () => {
                       <p className="text-xs text-green-600">({opp.profitPercentage.toFixed(2)}%)</p>
                     </div>
                     <div className="text-center">
-                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                        Expires
-                      </p>
+                      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Expires</p>
                       <p className="text-sm">{new Date(opp.expiresAt).toLocaleTimeString()}</p>
                     </div>
                   </div>
                 </div>
                 <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <div className="modern-card p-4">
+                  <GlassCard className="p-4">
                     <div className="flex justify-between items-center mb-2">
                       <span className="font-medium">{opp.bookmaker1.name}</span>
                       <span className="text-lg font-bold">{opp.bookmaker1.odds}</span>
@@ -135,8 +135,8 @@ const ArbitragePage: React.FC = () => {
                     <div className="text-sm text-gray-500 dark:text-gray-400">
                       Stake: ${opp.bookmaker1.stake.toFixed(2)}
                     </div>
-                  </div>
-                  <div className="modern-card p-4">
+                  </GlassCard>
+                  <GlassCard className="p-4">
                     <div className="flex justify-between items-center mb-2">
                       <span className="font-medium">{opp.bookmaker2.name}</span>
                       <span className="text-lg font-bold">{opp.bookmaker2.odds}</span>
@@ -144,17 +144,17 @@ const ArbitragePage: React.FC = () => {
                     <div className="text-sm text-gray-500 dark:text-gray-400">
                       Stake: ${opp.bookmaker2.stake.toFixed(2)}
                     </div>
-                  </div>
+                  </GlassCard>
                 </div>
                 <div className="mt-4 flex justify-end">
-                  <button className="modern-button">Place Bets</button>
+                  <GlowButton>Place Bets</GlowButton>
                 </div>
-              </div>
+              </GlassCard>
             ))
           )}
         </div>
-      </div>
-    </main>
+      </GlassCard>
+    </div>
   );
 };
 

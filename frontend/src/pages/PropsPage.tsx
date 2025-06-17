@@ -1,29 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import {
-  Container,
-  Typography,
-  Box,
-  Grid,
-  Tabs,
-  Tab,
-  TextField,
-  MenuItem,
-  Button,
-  Chip,
-  IconButton,
-  Tooltip,
-} from '@mui/material';
-import {
-  FilterList as FilterIcon,
-  TrendingUp as TrendingUpIcon,
-  TrendingDown as TrendingDownIcon,
-  SportsBasketball as BasketballIcon,
-  SportsBaseball as BaseballIcon,
-  SportsSoccer as SoccerIcon,
-} from '@mui/icons-material';
-import { PropList } from '@/components/PropList';
-import { PropAnalytics } from '@/components/PropAnalytics';
-import { TrendingProps } from '@/components/TrendingProps';
+import GlassCard from '../components/ui/GlassCard';
+import EnhancedPropCard from '../components/ui/EnhancedPropCard';
+import GlowButton from '../components/ui/GlowButton';
+import Tooltip from '../components/ui/Tooltip';
+import { Container, Typography, Box, Grid, TextField, MenuItem } from '@mui/material';
 import { notificationService } from '@/services/notification';
 import { sportsAnalytics, Sport, PropPrediction } from '@/services/sportsAnalytics';
 
@@ -243,88 +223,35 @@ export const PropsPage: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="xl">
-      <Box py={3}>
-        <Grid container spacing={3}>
-          {/* Header */}
-          <Grid item xs={12}>
-            <Box alignItems="center" display="flex" justifyContent="space-between" mb={3}>
-              <Typography variant="h4">PrizePicks Props</Typography>
-              <Box display="flex" gap={2}>
-                <TextField
-                  select
-                  label="Sport"
-                  size="small"
-                  value={selectedSport}
-                  onChange={e => setSelectedSport(e.target.value as Sport)}
-                >
-                  <MenuItem value="NBA">
-                    <Box alignItems="center" display="flex" gap={1}>
-                      <BasketballIcon />
-                      NBA
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="WNBA">
-                    <Box alignItems="center" display="flex" gap={1}>
-                      <BasketballIcon />
-                      WNBA
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="MLB">
-                    <Box alignItems="center" display="flex" gap={1}>
-                      <BaseballIcon />
-                      MLB
-                    </Box>
-                  </MenuItem>
-                  <MenuItem value="SOCCER">
-                    <Box alignItems="center" display="flex" gap={1}>
-                      <SoccerIcon />
-                      Soccer
-                    </Box>
-                  </MenuItem>
-                </TextField>
-                <TextField
-                  inputProps={{ min: 0, max: 100 }}
-                  label="Min Confidence"
-                  size="small"
-                  type="number"
-                  value={minConfidence}
-                  onChange={e => setMinConfidence(Number(e.target.value))}
-                />
-                <TextField
-                  inputProps={{ min: 0 }}
-                  label="Min Fire Count"
-                  size="small"
-                  type="number"
-                  value={minFireCount}
-                  onChange={e => setMinFireCount(Number(e.target.value))}
-                />
-              </Box>
-            </Box>
-          </Grid>
-
-          {/* Main Content */}
-          <Grid item md={8} xs={12}>
-            <PropList
-              isLoading={isLoading}
-              players={samplePlayers}
-              onPropSelect={handlePropSelect}
-            />
-          </Grid>
-
-          {/* Sidebar */}
-          <Grid item md={4} xs={12}>
-            <Box position="sticky" top={24}>
-              {selectedProp && propPrediction && (
-                <Box mb={3}>
-                  <PropAnalytics prediction={propPrediction} onBetSelect={handleBetSelect} />
-                </Box>
-              )}
-              <TrendingProps props={sampleTrendingProps} onPropSelect={handleTrendingPropSelect} />
-            </Box>
-          </Grid>
-        </Grid>
-      </Box>
-    </Container>
+    <div className="p-6 space-y-8 min-h-screen bg-gradient-to-br from-blue-900/80 to-blue-700/80 dark:from-gray-900 dark:to-gray-800 transition-colors">
+      <GlassCard className="mb-8">
+        <h2 className="text-2xl font-bold text-blue-900 dark:text-blue-100 mb-4">Player Props</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {samplePlayers.map((player, idx) =>
+            player.props.map((prop, pidx) => (
+              <EnhancedPropCard
+                key={prop.id}
+                playerName={player.player.name}
+                team={player.player.team}
+                position={player.player.position}
+                statType={prop.name}
+                line={prop.value}
+                overOdds={prop.overMultiplier}
+                underOdds={prop.underMultiplier}
+                pickType={prop.modifier || 'normal'}
+                trendValue={prop.fireCount}
+                gameInfo={{ opponent: 'TBD', day: 'Fri', time: '7:30pm' }}
+                playerImageUrl={player.player.imageUrl}
+                onSelect={() => {}}
+                onViewDetails={() => {}}
+              />
+            ))
+          )}
+        </div>
+      </GlassCard>
+      {/* Advanced Widgets or analytics can be added here as needed */}
+    </div>
   );
 };
+
+export default PropsPage;
