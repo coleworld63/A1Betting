@@ -183,6 +183,19 @@ async def startup_event():
         await real_time_stream_manager.initialize()
         logger.info("✅ Real-time stream manager initialized")
 
+        # Initialize ultra task processor
+        await ultra_task_processor.initialize()
+        await ultra_task_processor.start_workers(num_workers=4)
+        logger.info("✅ Ultra task processor initialized with 4 workers")
+
+        # Initialize ultra cache optimizer
+        await ultra_cache_optimizer.initialize()
+        logger.info("✅ Ultra cache optimizer initialized")
+
+        # Initialize ultra system monitor
+        asyncio.create_task(ultra_system_monitor.start_monitoring())
+        logger.info("✅ Ultra system monitor started")
+
         # Initialize legacy data pipeline (for backward compatibility)
         await data_pipeline.initialize()
         logger.info("✅ Legacy data pipeline initialized")
