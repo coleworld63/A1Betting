@@ -815,9 +815,19 @@ async def get_metrics():
         logger.error(f"Metrics fetch failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Background tasks
+# Ultra Background Tasks
+async def track_prediction_performance(prediction, event_id: str):
+    """Track prediction performance for ensemble learning"""
+    try:
+        # Store prediction for later performance analysis
+        async with db_manager.get_session() as session:
+            # This would store prediction details for outcome comparison
+            logger.info(f"Tracking prediction performance for event {event_id}")
+    except Exception as e:
+        logger.error(f"Error tracking prediction performance: {str(e)}")
+
 async def update_model_performance_metrics(model_predictions):
-    """Background task to update model performance metrics"""
+    """Background task to update model performance metrics (Legacy)"""
     try:
         # This would typically compare predictions with actual outcomes
         # For now, just log the predictions
