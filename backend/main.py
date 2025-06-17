@@ -609,10 +609,134 @@ async def get_opportunity_statistics():
         logger.error(f"Opportunity stats failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Real-time Stream Endpoints
+@app.websocket("/ws/v3/stream")
+async def websocket_stream_endpoint(websocket: WebSocket):
+    """Ultra-enhanced WebSocket endpoint for real-time streams"""
+    await websocket.accept()
+
+    subscriber_id = f"ws_{int(time.time())}_{id(websocket)}"
+
+    try:
+        # Initial handshake
+        await websocket.send_json({
+            "type": "connection_established",
+            "subscriber_id": subscriber_id,
+            "available_streams": [stream.value for stream in StreamType],
+            "timestamp": datetime.utcnow().isoformat()
+        })
+
+        # Wait for subscription request
+        subscription_data = await websocket.receive_json()
+
+        if subscription_data.get("type") != "subscribe":
+            await websocket.send_json({"error": "Expected subscription message"})
+            return
+
+        # Parse subscription
+        stream_types = [StreamType(st) for st in subscription_data.get("streams", [])]
+        filters = subscription_data.get("filters", {})
+
+        # Subscribe to streams
+        success = await real_time_stream_manager.subscribe(
+            subscriber_id=subscriber_id,
+            stream_types=stream_types,
+            filters=filters,
+            websocket=websocket
+        )
+
+        if not success:
+            await websocket.send_json({"error": "Subscription failed"})
+            return
+
+        await websocket.send_json({
+            "type": "subscription_confirmed",
+            "streams": [st.value for st in stream_types],
+            "filters": filters,
+            "timestamp": datetime.utcnow().isoformat()
+        })
+
+        # Keep connection alive
+        while True:
+            try:
+                # Send heartbeat every 30 seconds
+                await asyncio.sleep(30)
+                await websocket.send_json({
+                    "type": "heartbeat",
+                    "timestamp": datetime.utcnow().isoformat()
+                })
+            except Exception:
+                break
+
+    except Exception as e:
+        logger.error(f"WebSocket stream error: {str(e)}")
+    finally:
+        # Cleanup subscription
+        await real_time_stream_manager.unsubscribe(subscriber_id)
+
+@app.post("/api/v3/stream/publish")
+async def publish_stream_message(
+    stream_type: str,
+    data: Dict[str, Any],
+    priority: str = "medium",
+    event_id: Optional[str] = None
+):
+    """Publish message to real-time stream"""
+    try:
+        message = StreamMessage(
+            id=f"api_{int(time.time())}_{hash(str(data))}",
+            stream_type=StreamType(stream_type),
+            priority=UpdatePriority(priority),
+            data=data,
+            timestamp=datetime.utcnow(),
+            source="api",
+            event_id=event_id
+        )
+
+        await real_time_stream_manager.publish_message(message)
+
+        return {
+            "message_id": message.id,
+            "published": True,
+            "timestamp": message.timestamp.isoformat()
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid stream type or priority: {str(e)}")
+    except Exception as e:
+        logger.error(f"Stream publish failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v3/stream/health")
+async def get_stream_health():
+    """Get real-time stream system health"""
+    try:
+        health = await real_time_stream_manager.get_stream_health()
+        return {
+            "stream_health": health,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Stream health check failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Model management endpoints
+@app.get("/api/v3/models/ensemble")
+async def get_ensemble_status():
+    """Get ultra ensemble engine status and performance"""
+    try:
+        health = await ultra_ensemble_engine.get_ensemble_health()
+        return {
+            "ensemble_status": health,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Ensemble status failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/v2/models")
 async def get_model_status():
-    """Get current model status and performance"""
+    """Get current model status and performance (Legacy v2)"""
     try:
         health = await model_service.get_model_health()
         return {
