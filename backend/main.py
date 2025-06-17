@@ -906,6 +906,247 @@ async def get_risk_management_health():
         logger.error(f"Risk management health check failed: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Ultra Task Processing Endpoints
+@app.post("/api/v3/tasks/submit")
+async def submit_background_task(
+    task_type: str,
+    function_name: str,
+    priority: str = "medium",
+    args: List[Any] = [],
+    kwargs: Dict[str, Any] = {},
+    timeout_seconds: int = 300,
+    max_retries: int = 3
+):
+    """Submit background task for processing"""
+    try:
+        # Convert string values to enums
+        task_type_enum = TaskType(task_type)
+        priority_enum = TaskPriority[priority.upper()]
+
+        # Create task definition
+        task = TaskDefinition(
+            id=f"api_task_{int(time.time())}_{hash(function_name)}",
+            task_type=task_type_enum,
+            priority=priority_enum,
+            function_name=function_name,
+            args=args,
+            kwargs=kwargs,
+            timeout_seconds=timeout_seconds,
+            max_retries=max_retries,
+            created_by="api"
+        )
+
+        # Submit task
+        task_id = await ultra_task_processor.submit_task(task)
+
+        return {
+            "task_id": task_id,
+            "status": "submitted",
+            "estimated_completion": (datetime.utcnow() + timedelta(seconds=timeout_seconds)).isoformat(),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid task parameters: {str(e)}")
+    except Exception as e:
+        logger.error(f"Task submission failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v3/tasks/{task_id}/result")
+async def get_task_result(task_id: str):
+    """Get background task result"""
+    try:
+        result = await ultra_task_processor.get_task_result(task_id)
+
+        if result is None:
+            raise HTTPException(status_code=404, detail="Task not found or still processing")
+
+        return {
+            "task_id": task_id,
+            "status": result.status.value,
+            "result": result.result,
+            "error": result.error,
+            "execution_time": result.execution_time,
+            "started_at": result.started_at.isoformat() if result.started_at else None,
+            "completed_at": result.completed_at.isoformat() if result.completed_at else None,
+            "worker_info": {
+                "worker_id": result.worker_id,
+                "worker_node": result.worker_node
+            },
+            "retry_info": {
+                "attempt_number": result.attempt_number,
+                "retry_count": result.retry_count
+            },
+            "resource_usage": {
+                "cpu_usage": result.cpu_usage,
+                "memory_usage": result.memory_usage
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Task result retrieval failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v3/tasks/stats")
+async def get_task_system_stats():
+    """Get comprehensive task system statistics"""
+    try:
+        stats = await ultra_task_processor.get_system_stats()
+        return {
+            "task_system_stats": stats,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Task system stats failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Ultra Cache System Endpoints
+@app.get("/api/v3/cache/stats")
+async def get_cache_system_stats():
+    """Get comprehensive cache system statistics"""
+    try:
+        health = await ultra_cache_optimizer.get_system_health()
+        return {
+            "cache_system_health": health,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Cache system stats failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/v3/cache/warm")
+async def warm_cache_patterns(patterns: Optional[List[str]] = None):
+    """Trigger cache warming for specified patterns"""
+    try:
+        await ultra_cache_optimizer.cache_warmer.warm_cache(patterns)
+        return {
+            "status": "cache_warming_triggered",
+            "patterns": patterns or "all_registered_patterns",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Cache warming failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/v3/cache/optimize")
+async def optimize_cache_performance():
+    """Trigger cache performance optimization"""
+    try:
+        await ultra_cache_optimizer.optimize_cache_performance()
+        return {
+            "status": "cache_optimization_completed",
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Cache optimization failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/v3/cache/clear")
+async def clear_cache(pattern: str = "*"):
+    """Clear cache entries matching pattern"""
+    try:
+        await ultra_cache_optimizer.cache.clear(pattern)
+        return {
+            "status": "cache_cleared",
+            "pattern": pattern,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Cache clear failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Ultra System Monitoring Endpoints
+@app.get("/api/v3/monitoring/status")
+async def get_comprehensive_system_status():
+    """Get comprehensive system monitoring status"""
+    try:
+        status = await ultra_system_monitor.get_comprehensive_status()
+        return {
+            "system_status": status,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"System status failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v3/monitoring/alerts")
+async def get_active_alerts():
+    """Get active system alerts"""
+    try:
+        alerts = []
+        for alert in ultra_system_monitor.alert_manager.active_alerts.values():
+            alerts.append({
+                "id": alert.id,
+                "severity": alert.severity.name,
+                "title": alert.title,
+                "description": alert.description,
+                "metric_type": alert.metric_type.value,
+                "threshold_value": alert.threshold_value,
+                "actual_value": alert.actual_value,
+                "created_at": alert.created_at.isoformat(),
+                "acknowledged": alert.acknowledged_at is not None,
+                "acknowledged_by": alert.acknowledged_by,
+                "escalated": alert.escalated,
+                "metadata": alert.metadata
+            })
+
+        return {
+            "active_alerts": alerts,
+            "total_alerts": len(alerts),
+            "alert_statistics": ultra_system_monitor.alert_manager.get_alert_statistics(),
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Active alerts retrieval failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/v3/monitoring/alerts/{alert_id}/acknowledge")
+async def acknowledge_alert(alert_id: str, acknowledged_by: str = "api_user"):
+    """Acknowledge a system alert"""
+    try:
+        success = await ultra_system_monitor.alert_manager.acknowledge_alert(alert_id, acknowledged_by)
+
+        if not success:
+            raise HTTPException(status_code=404, detail="Alert not found")
+
+        return {
+            "status": "alert_acknowledged",
+            "alert_id": alert_id,
+            "acknowledged_by": acknowledged_by,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Alert acknowledgment failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v3/monitoring/metrics/{metric_type}")
+async def get_metric_statistics(metric_type: str, duration_minutes: int = 60):
+    """Get statistics for specific metric type"""
+    try:
+        metric_type_enum = MetricType(metric_type)
+        stats = ultra_system_monitor.metrics_collector.get_metric_statistics(
+            metric_type_enum, duration_minutes
+        )
+
+        return {
+            "metric_type": metric_type,
+            "duration_minutes": duration_minutes,
+            "statistics": stats,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid metric type: {metric_type}")
+    except Exception as e:
+        logger.error(f"Metric statistics failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # Data pipeline endpoints
 @app.post("/api/v2/data/fetch")
 async def fetch_data_endpoint(request: DataPipelineRequest):
