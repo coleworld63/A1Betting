@@ -321,6 +321,36 @@ const navigationConfig: NavigationGroup[] = [
     ],
   },
   {
+    group: "Revolutionary 2024 Research",
+    items: [
+      {
+        href: "#/revolutionary-accuracy",
+        label: "🚀 Revolutionary Engine",
+        color: "text-pink-600",
+      },
+      {
+        href: "#/neuromorphic-interface",
+        label: "🧠 Neuromorphic Computing",
+        color: "text-indigo-600",
+      },
+      {
+        href: "#/physics-informed",
+        label: "⚗️ Physics-Informed ML",
+        color: "text-emerald-600",
+      },
+      {
+        href: "#/causal-discovery",
+        label: "🔀 Causal Inference",
+        color: "text-orange-600",
+      },
+      {
+        href: "#/manifold-learning",
+        label: "🌐 Manifold Learning",
+        color: "text-cyan-600",
+      },
+    ],
+  },
+  {
     group: "Analytics & Real-time",
     items: [
       { href: "#/analytics", label: "📊 Analytics", color: "text-emerald-600" },
