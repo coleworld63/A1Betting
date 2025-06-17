@@ -767,11 +767,13 @@ const App: React.FC = () => {
 
             {/* Navigation Actions */}
             <div className="flex items-center space-x-3">
-              <button
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => window.location.reload()}
-                className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 rounded-lg transition-colors duration-200"
                 aria-label="Refresh application"
                 title="Refresh"
+                className="hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-brand-900/20"
               >
                 <svg
                   className="w-5 h-5"
@@ -786,7 +788,7 @@ const App: React.FC = () => {
                     d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                   />
                 </svg>
-              </button>
+              </Button>
             </div>
           </div>
         </div>
