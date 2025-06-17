@@ -307,14 +307,106 @@ async def liveness_check():
         "uptime": time.time() - app_start_time
     }
 
-# Enhanced prediction endpoints
+# Ultra-Enhanced Prediction Endpoints
+@app.post("/api/v3/predict/ultra")
+async def predict_ultra_enhanced(
+    request: PredictionRequestModel,
+    background_tasks: BackgroundTasks,
+    context: str = "pre_game",
+    enable_meta_learning: bool = True,
+    db: Any = Depends(get_db_session)
+):
+    """Ultra-enhanced prediction with intelligent ensemble and real-time integration"""
+    try:
+        # Convert context
+        prediction_context = PredictionContext(context)
+
+        # Generate ultra prediction using ensemble engine
+        prediction = await ultra_ensemble_engine.predict(
+            features=request.features,
+            context=prediction_context
+        )
+
+        # Create real-time prediction update message
+        prediction_message = StreamMessage(
+            id=f"pred_{prediction.timestamp.timestamp()}",
+            stream_type=StreamType.PREDICTIONS,
+            priority=UpdatePriority.HIGH,
+            data={
+                "event_id": request.event_id,
+                "prediction": prediction.predicted_value,
+                "confidence": prediction.prediction_probability,
+                "confidence_interval": prediction.confidence_interval,
+                "model_agreement": prediction.model_agreement,
+                "context": context,
+                "feature_importance": prediction.feature_importance,
+                "uncertainty_metrics": prediction.uncertainty_metrics
+            },
+            timestamp=prediction.timestamp,
+            source="ultra_ensemble_engine",
+            event_id=request.event_id,
+            metadata={
+                "models_used": prediction.metadata.get("selected_models", []),
+                "model_weights": prediction.metadata.get("model_weights", {}),
+                "processing_time": prediction.processing_time
+            }
+        )
+
+        # Broadcast prediction update
+        background_tasks.add_task(
+            real_time_stream_manager.publish_message,
+            prediction_message
+        )
+
+        # Schedule performance tracking
+        background_tasks.add_task(
+            track_prediction_performance,
+            prediction,
+            request.event_id
+        )
+
+        return {
+            "event_id": request.event_id,
+            "prediction": {
+                "value": prediction.predicted_value,
+                "confidence": prediction.prediction_probability,
+                "confidence_interval": {
+                    "lower": prediction.confidence_interval[0],
+                    "upper": prediction.confidence_interval[1]
+                },
+                "model_agreement": prediction.model_agreement,
+                "processing_time": prediction.processing_time
+            },
+            "ensemble": {
+                "selected_models": prediction.metadata.get("selected_models", []),
+                "model_weights": prediction.metadata.get("model_weights", {}),
+                "selection_strategy": prediction.metadata.get("ensemble_config", {}).get("weighting_strategy", "dynamic")
+            },
+            "explanations": {
+                "feature_importance": prediction.feature_importance,
+                "shap_values": prediction.shap_values if request.require_explanations else {},
+                "uncertainty_breakdown": prediction.uncertainty_metrics
+            },
+            "context": {
+                "prediction_context": context,
+                "meta_learning_applied": enable_meta_learning,
+                "feature_engineering_stats": prediction.metadata.get("feature_engineering_stats", {})
+            },
+            "timestamp": prediction.timestamp.isoformat(),
+            "version": "3.0.0"
+        }
+
+    except Exception as e:
+        logger.error(f"Ultra prediction failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Ultra prediction failed: {str(e)}")
+
 @app.post("/api/v2/predict")
 async def predict_enhanced(
     request: PredictionRequestModel,
     background_tasks: BackgroundTasks,
     db: Any = Depends(get_db_session)
 ):
-    """Enhanced prediction endpoint with full pipeline integration"""
+    """Enhanced prediction endpoint with full pipeline integration (Legacy v2)"""
     try:
         # Convert to internal request format
         prediction_request = PredictionRequest(
@@ -363,6 +455,60 @@ async def predict_enhanced(
     except Exception as e:
         logger.error(f"Prediction failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+
+# Multi-source data integration endpoints
+@app.post("/api/v3/data/multi-source")
+async def fetch_multi_source_data(
+    data_type: str,
+    entity_id: str,
+    max_age_seconds: int = 300,
+    quality_threshold: float = 0.7
+):
+    """Fetch and reconcile data from multiple sources with quality scoring"""
+    try:
+        # Convert data type
+        data_type_enum = DataType(data_type)
+
+        # Fetch from multiple sources
+        reconciled_data = await ultra_data_manager.fetch_multi_source_data(
+            data_type=data_type_enum,
+            entity_id=entity_id,
+            max_age_seconds=max_age_seconds
+        )
+
+        if not reconciled_data:
+            raise HTTPException(status_code=404, detail="No quality data found")
+
+        if reconciled_data.quality_metrics.confidence < quality_threshold:
+            logger.warning(f"Data quality below threshold: {reconciled_data.quality_metrics.confidence}")
+
+        return {
+            "entity_id": entity_id,
+            "data_type": data_type,
+            "data": reconciled_data.normalized_data,
+            "quality": {
+                "completeness": reconciled_data.quality_metrics.completeness,
+                "accuracy": reconciled_data.quality_metrics.accuracy,
+                "timeliness": reconciled_data.quality_metrics.timeliness,
+                "consistency": reconciled_data.quality_metrics.consistency,
+                "reliability": reconciled_data.quality_metrics.reliability,
+                "confidence": reconciled_data.quality_metrics.confidence,
+                "anomaly_score": reconciled_data.quality_metrics.anomaly_score
+            },
+            "sources": {
+                "primary_source": reconciled_data.source_id,
+                "reliability_tier": reconciled_data.reliability_tier.value,
+                "reconciliation_sources": reconciled_data.metadata.get("reconciliation_sources", [])
+            },
+            "timestamp": reconciled_data.timestamp.isoformat(),
+            "processing_pipeline": reconciled_data.processing_pipeline
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid data type: {data_type}")
+    except Exception as e:
+        logger.error(f"Multi-source data fetch failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Data pipeline endpoints
 @app.post("/api/v2/data/fetch")
