@@ -24,7 +24,7 @@ export interface ErrorDetails {
 
 export class UnifiedErrorService extends BaseService {
   private static instance: UnifiedErrorService;
-  private readonly config: UnifiedConfigManager;
+  private readonly config: UnifiedConfig;
   private readonly logger: UnifiedLogger;
   private readonly cache: UnifiedCache;
   private readonly errorHistory: ErrorContext[] = [];
