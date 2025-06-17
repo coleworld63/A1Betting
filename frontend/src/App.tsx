@@ -21,7 +21,12 @@ import MoneyMakerAdvanced from "./components/MoneyMaker/MoneyMakerAdvanced.tsx";
 import UltimateMoneyMakerEnhanced from "./components/UltimateMoneyMakerEnhanced.tsx";
 
 // Enhanced Design System
-import { Button, Card, Badge, Spinner } from "./components/ui/design-system.tsx";
+import {
+  Button,
+  Card,
+  Badge,
+  Spinner,
+} from "./components/ui/design-system.tsx";
 import { cn } from "./lib/utils.ts";
 
 // TypeScript interfaces
@@ -74,9 +79,18 @@ const LoadingFallback: React.FC<LoadingFallbackProps> = ({
       {message}
     </div>
     <div className="flex space-x-1">
-      <div className="w-2 h-2 bg-brand-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-      <div className="w-2 h-2 bg-brand-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-      <div className="w-2 h-2 bg-brand-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+      <div
+        className="w-2 h-2 bg-brand-500 rounded-full animate-bounce"
+        style={{ animationDelay: "0ms" }}
+      />
+      <div
+        className="w-2 h-2 bg-brand-500 rounded-full animate-bounce"
+        style={{ animationDelay: "150ms" }}
+      />
+      <div
+        className="w-2 h-2 bg-brand-500 rounded-full animate-bounce"
+        style={{ animationDelay: "300ms" }}
+      />
     </div>
   </div>
 );
@@ -102,7 +116,10 @@ class RouteErrorBoundary extends Component<
   render() {
     if (this.state.hasError) {
       return (
-        <Card variant="premium" className="flex-center flex-col h-64 space-y-6 text-center max-w-md mx-auto">
+        <Card
+          variant="premium"
+          className="flex-center flex-col h-64 space-y-6 text-center max-w-md mx-auto"
+        >
           <div className="text-6xl animate-bounce">⚠️</div>
           <div className="space-y-3">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -731,14 +748,8 @@ const App: React.FC = () => {
                           "focus:ring-2 focus:ring-brand-500 focus:ring-offset-2",
                           currentPath === item.href.slice(1)
                             ? "bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-brandShadow transform scale-105"
-                            : `${item.color} hover:bg-white/10 hover:backdrop-blur-lg hover:text-white hover:shadow-soft`
+                            : `${item.color} hover:bg-white/10 hover:backdrop-blur-lg hover:text-white hover:shadow-soft`,
                         )}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          handleNavigation(item.href);
-                        }}
-                        onMouseEnter={() => prefetchRoute(item.href.slice(1))}
-                        onKeyDown={(e) => handleKeyDown(e, item.href)}
                         tabIndex={0}
                         aria-current={
                           currentPath === item.href.slice(1)
@@ -747,7 +758,7 @@ const App: React.FC = () => {
                         }
                       >
                         {item.label}
-                      </a>
+                      </button>
                     ))}
                   </div>
                 ))}
