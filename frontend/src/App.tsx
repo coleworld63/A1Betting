@@ -335,6 +335,11 @@ const navigationConfig: NavigationGroup[] = [
         color: "text-pink-600",
       },
       {
+        href: "#/enhanced-revolutionary",
+        label: "🧮 Enhanced Mathematical Engine",
+        color: "text-purple-700",
+      },
+      {
         href: "#/neuromorphic-interface",
         label: "🧠 Neuromorphic Computing",
         color: "text-indigo-600",
