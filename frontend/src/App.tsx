@@ -709,15 +709,15 @@ const App: React.FC = () => {
   }, [currentPath]);
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
-      {/* Enhanced Navigation with Improved Accessibility and Responsive Design */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 transition-all duration-500">
+      {/* Enhanced Navigation with Premium Design System */}
       <nav
-        className="nav-premium sticky top-0 z-50"
+        className="sticky top-0 z-60 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-800/50 shadow-lg"
         role="navigation"
         aria-label="Main navigation"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex-between h-16">
             {/* Responsive Navigation Container */}
             <div className="flex-1 flex items-center">
               <div className="flex space-x-1 overflow-x-auto scrollbar-hide">
