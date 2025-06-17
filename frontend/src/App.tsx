@@ -21,12 +21,7 @@ import MoneyMakerAdvanced from "./components/MoneyMaker/MoneyMakerAdvanced.tsx";
 import UltimateMoneyMakerEnhanced from "./components/UltimateMoneyMakerEnhanced.tsx";
 
 // Enhanced Design System
-import {
-  Button,
-  Card,
-  Badge,
-  Spinner,
-} from "./components/ui/design-system.tsx";
+import { Button, Card, Badge, Spinner } from "./components/ui/design-system.tsx";
 import { cn } from "./lib/utils.ts";
 
 // TypeScript interfaces
@@ -79,18 +74,9 @@ const LoadingFallback: React.FC<LoadingFallbackProps> = ({
       {message}
     </div>
     <div className="flex space-x-1">
-      <div
-        className="w-2 h-2 bg-brand-500 rounded-full animate-bounce"
-        style={{ animationDelay: "0ms" }}
-      />
-      <div
-        className="w-2 h-2 bg-brand-500 rounded-full animate-bounce"
-        style={{ animationDelay: "150ms" }}
-      />
-      <div
-        className="w-2 h-2 bg-brand-500 rounded-full animate-bounce"
-        style={{ animationDelay: "300ms" }}
-      />
+      <div className="w-2 h-2 bg-brand-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+      <div className="w-2 h-2 bg-brand-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+      <div className="w-2 h-2 bg-brand-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
     </div>
   </div>
 );
@@ -116,10 +102,7 @@ class RouteErrorBoundary extends Component<
   render() {
     if (this.state.hasError) {
       return (
-        <Card
-          variant="premium"
-          className="flex-center flex-col h-64 space-y-6 text-center max-w-md mx-auto"
-        >
+        <Card variant="premium" className="flex-center flex-col h-64 space-y-6 text-center max-w-md mx-auto">
           <div className="text-6xl animate-bounce">⚠️</div>
           <div className="space-y-3">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
@@ -720,7 +703,7 @@ const App: React.FC = () => {
           <div className="flex-between h-16">
             {/* Responsive Navigation Container */}
             <div className="flex-1 flex items-center">
-              <div className="flex space-x-1 overflow-x-auto scrollbar-hide">
+              <div className="flex space-x-1 overflow-x-auto scrollbar-thin">
                 {navigationConfig.map((group, groupIndex) => (
                   <div
                     key={group.group}
@@ -728,25 +711,28 @@ const App: React.FC = () => {
                   >
                     {groupIndex > 0 && (
                       <div
-                        className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"
+                        className="h-6 w-px bg-gradient-to-b from-transparent via-gray-300 to-transparent dark:via-gray-600 mx-2"
                         aria-hidden="true"
                       />
                     )}
                     {group.items.map((item) => (
-                      <a
+                      <button
                         key={item.href}
-                        href={item.href}
-                        className={`
-                          inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg
-                          transition-all duration-200 ease-out whitespace-nowrap
-                          hover:bg-white/10 hover:backdrop-blur-lg focus:outline-none
-                          focus:ring-2 focus:ring-brand-500 focus:ring-offset-2
-                          ${
-                            currentPath === item.href.slice(1)
-                              ? "bg-brand-500 text-white shadow-brandShadow"
-                              : `${item.color} hover:text-white`
-                          }
-                        `}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleNavigation(item.href);
+                        }}
+                        onMouseEnter={() => prefetchRoute(item.href.slice(1))}
+                        onKeyDown={(e) => handleKeyDown(e, item.href)}
+                        className={cn(
+                          "inline-flex items-center px-3 py-2 text-sm font-medium rounded-xl",
+                          "transition-all duration-300 ease-out whitespace-nowrap",
+                          "hover:scale-105 active:scale-95 focus:outline-none",
+                          "focus:ring-2 focus:ring-brand-500 focus:ring-offset-2",
+                          currentPath === item.href.slice(1)
+                            ? "bg-gradient-to-r from-brand-500 to-brand-600 text-white shadow-brandShadow transform scale-105"
+                            : `${item.color} hover:bg-white/10 hover:backdrop-blur-lg hover:text-white hover:shadow-soft`
+                        )}
                         onClick={(e) => {
                           e.preventDefault();
                           handleNavigation(item.href);
